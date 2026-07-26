@@ -9,13 +9,31 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TerminosRouteImport } from './routes/terminos'
 import { Route as ReservarRouteImport } from './routes/reservar'
+import { Route as PoliticaRouteImport } from './routes/politica'
+import { Route as CookiesRouteImport } from './routes/cookies'
 import { Route as AdminRouteImport } from './routes/admin'
 import { Route as IndexRouteImport } from './routes/index'
 
+const TerminosRoute = TerminosRouteImport.update({
+  id: '/terminos',
+  path: '/terminos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ReservarRoute = ReservarRouteImport.update({
   id: '/reservar',
   path: '/reservar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PoliticaRoute = PoliticaRouteImport.update({
+  id: '/politica',
+  path: '/politica',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CookiesRoute = CookiesRouteImport.update({
+  id: '/cookies',
+  path: '/cookies',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminRoute = AdminRouteImport.update({
@@ -32,40 +50,86 @@ const IndexRoute = IndexRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cookies': typeof CookiesRoute
+  '/politica': typeof PoliticaRoute
   '/reservar': typeof ReservarRoute
+  '/terminos': typeof TerminosRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cookies': typeof CookiesRoute
+  '/politica': typeof PoliticaRoute
   '/reservar': typeof ReservarRoute
+  '/terminos': typeof TerminosRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/admin': typeof AdminRoute
+  '/cookies': typeof CookiesRoute
+  '/politica': typeof PoliticaRoute
   '/reservar': typeof ReservarRoute
+  '/terminos': typeof TerminosRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/admin' | '/reservar'
+  fullPaths:
+    | '/'
+    | '/admin'
+    | '/cookies'
+    | '/politica'
+    | '/reservar'
+    | '/terminos'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/admin' | '/reservar'
-  id: '__root__' | '/' | '/admin' | '/reservar'
+  to: '/' | '/admin' | '/cookies' | '/politica' | '/reservar' | '/terminos'
+  id:
+    | '__root__'
+    | '/'
+    | '/admin'
+    | '/cookies'
+    | '/politica'
+    | '/reservar'
+    | '/terminos'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AdminRoute: typeof AdminRoute
+  CookiesRoute: typeof CookiesRoute
+  PoliticaRoute: typeof PoliticaRoute
   ReservarRoute: typeof ReservarRoute
+  TerminosRoute: typeof TerminosRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/terminos': {
+      id: '/terminos'
+      path: '/terminos'
+      fullPath: '/terminos'
+      preLoaderRoute: typeof TerminosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/reservar': {
       id: '/reservar'
       path: '/reservar'
       fullPath: '/reservar'
       preLoaderRoute: typeof ReservarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/politica': {
+      id: '/politica'
+      path: '/politica'
+      fullPath: '/politica'
+      preLoaderRoute: typeof PoliticaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/cookies': {
+      id: '/cookies'
+      path: '/cookies'
+      fullPath: '/cookies'
+      preLoaderRoute: typeof CookiesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin': {
@@ -88,7 +152,10 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AdminRoute: AdminRoute,
+  CookiesRoute: CookiesRoute,
+  PoliticaRoute: PoliticaRoute,
   ReservarRoute: ReservarRoute,
+  TerminosRoute: TerminosRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
