@@ -1,18 +1,19 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { MessageCircle, Calendar, Sparkles, Scissors, Instagram, MapPin } from "lucide-react";
+import { MessageCircle, Calendar, Sparkles, Eye, Instagram, MapPin } from "lucide-react";
 import hero from "../assets/hero.jpg";
 import w1 from "../assets/work-1.jpg";
 import w2 from "../assets/work-2.jpg";
 import w3 from "../assets/work-3.jpg";
 import w4 from "../assets/work-4.jpg";
+import logo from "../assets/jp-brows-logo.jpg.asset.json";
 import { BUSINESS, SERVICES } from "../lib/config";
 import { buildWhatsappUrl } from "../lib/booking";
 
 export const Route = createFileRoute("/")({
   head: () => ({
     meta: [
-      { title: `${BUSINESS.name} — Peinados, Cejas y Maquillaje` },
+      { title: `${BUSINESS.name} — Cejas y Pestañas` },
       { name: "description", content: BUSINESS.description },
       { property: "og:title", content: `${BUSINESS.name} — ${BUSINESS.tagline}` },
       { property: "og:description", content: BUSINESS.description },
@@ -24,11 +25,12 @@ export const Route = createFileRoute("/")({
 });
 
 const IMAGES = [
-  { src: w1, alt: "Peinado ondas suaves" },
-  { src: w3, alt: "Recogido de novia con flores" },
-  { src: w2, alt: "Herramientas de maquillaje" },
-  { src: w4, alt: "Paleta de maquillaje nude" },
+  { src: w1, alt: "Ceja laminada y perfilada" },
+  { src: w3, alt: "Cabina del studio de cuidados" },
+  { src: w2, alt: "Pestañas con lifting y volumen" },
+  { src: w4, alt: "Herramientas de cejas y pestañas" },
 ];
+
 
 function Landing() {
   const [slide, setSlide] = useState(0);
