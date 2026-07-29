@@ -1,9 +1,9 @@
 // Configuración del negocio - edítalo aquí
 export const BUSINESS = {
-  name: "Ale Mina",
-  tagline: "Realza tu belleza natural",
+  name: "JP Brows Studio",
+  tagline: "La mirada es tu mejor detalle",
   description:
-    "Estudio de peinados, cejas y maquillaje. Estilo, cuidado y elegancia en cada cita.",
+    "Studio de cuidados especializado en cejas y pestañas: diseño, laminado, lifting y extensiones con técnica precisa y productos premium.",
   whatsapp: "52613128937", // Sin + ni espacios. Formato E.164 para wa.me
   whatsappDisplay: "+52 613 128 937",
   adminEmail: "alemina0610@gmail.com",
@@ -12,12 +12,14 @@ export const BUSINESS = {
 };
 
 export const SERVICES = [
-  { id: "peinado", name: "Peinado", duration: 60, price: "$450", desc: "Ondas, planchado, recogidos casuales y de evento." },
-  { id: "peinado-novia", name: "Peinado de novia", duration: 90, price: "$1,200", desc: "Prueba + diseño personalizado para tu día especial." },
-  { id: "cejas", name: "Diseño de cejas", duration: 30, price: "$200", desc: "Depilación, tinte y perfilado según tu rostro." },
-  { id: "maquillaje", name: "Maquillaje", duration: 60, price: "$650", desc: "Social, glam o natural. Larga duración." },
-  { id: "paquete-novia", name: "Paquete novia completo", duration: 150, price: "$2,200", desc: "Peinado + maquillaje + cejas para el gran día." },
+  { id: "diseno-cejas", name: "Diseño de cejas", duration: 45, price: "$250", desc: "Visagismo, depilación con hilo o cera y perfilado a medida." },
+  { id: "laminado", name: "Laminado de cejas", duration: 60, price: "$650", desc: "Alisado y fijación del vello para una ceja llena y peinada." },
+  { id: "henna", name: "Henna / tinte de cejas", duration: 45, price: "$350", desc: "Color natural que define y rellena zonas sin vello." },
+  { id: "lifting", name: "Lifting de pestañas", duration: 60, price: "$700", desc: "Curvatura y elevación con nutrición y tinte incluido." },
+  { id: "extensiones", name: "Extensiones de pestañas", duration: 120, price: "$900", desc: "Pelo a pelo, híbridas o volumen ruso según tu estilo." },
+  { id: "ritual-mirada", name: "Ritual de mirada completo", duration: 150, price: "$1,400", desc: "Laminado + henna + lifting: el cuidado integral del studio." },
 ];
+
 
 // Horario disponible por día (formato 24h). La dueña puede bloquear días/horas desde el panel.
 export const WEEKLY_HOURS: Record<number, { start: string; end: string } | null> = {
