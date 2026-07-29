@@ -49,9 +49,17 @@ function Landing() {
       {/* NAV */}
       <header className="sticky top-0 z-40 border-b border-border/40 bg-background/80 backdrop-blur">
         <nav className="mx-auto flex max-w-6xl items-center justify-between px-4 py-3">
-          <Link to="/" className="font-serif text-xl tracking-wide">
-            {BUSINESS.name}
+          <Link to="/" className="flex items-center gap-2">
+            <img
+              src={logo.url}
+              alt={`Logo ${BUSINESS.name}`}
+              className="h-10 w-10 rounded-full object-cover"
+              width={40}
+              height={40}
+            />
+            <span className="font-serif text-lg tracking-wide">{BUSINESS.name}</span>
           </Link>
+
           <div className="hidden items-center gap-6 text-sm md:flex">
             <a href="#trabajo" className="hover:text-accent">Trabajo</a>
             <a href="#servicios" className="hover:text-accent">Servicios</a>
@@ -71,7 +79,7 @@ function Landing() {
         <div className="mx-auto grid max-w-6xl gap-8 px-4 py-12 md:grid-cols-2 md:items-center md:py-20">
           <div className="space-y-6">
             <p className="inline-flex items-center gap-2 rounded-full bg-accent/20 px-3 py-1 text-xs uppercase tracking-widest">
-              <Sparkles className="h-3 w-3" /> Estudio de belleza
+              <Sparkles className="h-3 w-3" /> Studio de cuidados · Cejas & Pestañas
             </p>
             <h1 className="font-serif text-4xl leading-tight md:text-6xl">
               {BUSINESS.tagline}
@@ -95,7 +103,7 @@ function Landing() {
             </div>
           </div>
           <div className="relative aspect-[4/5] overflow-hidden rounded-3xl shadow-xl">
-            <img src={hero} alt="Estilo elegante" className="h-full w-full object-cover" width={1600} height={1200} />
+            <img src={hero} alt="Studio de cuidados de cejas y pestañas" className="h-full w-full object-cover" width={1200} height={1500} />
           </div>
         </div>
       </section>
@@ -166,7 +174,7 @@ function Landing() {
                 className="group rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 flex items-center justify-between">
-                  <Scissors className="h-5 w-5 text-accent" />
+                  <Eye className="h-5 w-5 text-accent" />
                   <span className="text-sm font-medium text-muted-foreground">{s.duration} min</span>
                 </div>
                 <h3 className="font-serif text-xl">{s.name}</h3>
