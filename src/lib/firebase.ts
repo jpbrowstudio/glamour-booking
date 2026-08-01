@@ -10,11 +10,11 @@ import { getAuth, type Auth } from "firebase/auth";
 // y se leerán automáticamente sin tocar este archivo.
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "TU_API_KEY",
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN || "salon-946b4.firebaseapp.com",
-  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID || "salon-946b4",
-  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET || "salon-946b4.appspot.com",
-  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID || "000000000000",
-  appId: import.meta.env.VITE_FIREBASE_APP_ID || "1:000000000000:web:abcdef",
+  authDomain: "salon-946b4.firebaseapp.com",
+  projectId: "salon-946b4",
+  storageBucket: "salon-946b4.firebasestorage.app",
+  messagingSenderId: "762130368161",
+  appId: "1:762130368161:web:05488f368dbe6e1f9692e0",
 };
 
 export const isFirebaseConfigured = firebaseConfig.apiKey !== "TU_API_KEY";
