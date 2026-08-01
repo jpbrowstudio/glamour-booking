@@ -62,8 +62,20 @@ function AdminPage() {
     try {
       await signInWithEmailAndPassword(auth, email, password);
     } catch (err) {
-      setLoginError(err instanceof Error ? err.message : "Error de acceso");
+      const code = (err as { code?: string })?.code ?? "";
+      const map: Record<string, string> = {
+        "auth/configuration-not-found":
+          "Falta activar Authentication → Sign-in method → Email/Password en la consola de Firebase.",
+        "auth/invalid-credential": "Email o contraseña incorrectos.",
+        "auth/user-not-found": "Ese usuario no existe. Créalo en Firebase → Authentication → Users.",
+        "auth/wrong-password": "Contraseña incorrecta.",
+        "auth/too-many-requests": "Demasiados intentos. Espera unos minutos.",
+        "auth/unauthorized-domain":
+          "Este dominio no está autorizado. Añádelo en Firebase → Authentication → Settings → Authorized domains.",
+      };
+      setLoginError(map[code] ?? (err instanceof Error ? err.message : "Error de acceso"));
     }
+
   };
 
   const logout = async () => {
