@@ -9,7 +9,7 @@ import { getAuth, type Auth } from "firebase/auth";
 // Puedes también definirlas como variables de entorno (VITE_FIREBASE_*)
 // y se leerán automáticamente sin tocar este archivo.
 const firebaseConfig = {
-  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "TU_API_KEY",
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "AIzaSyDco9b5XPNULAuNi-XWWnmxNhjF39e9euM",
   authDomain: "salon-946b4.firebaseapp.com",
   projectId: "salon-946b4",
   storageBucket: "salon-946b4.firebasestorage.app",
