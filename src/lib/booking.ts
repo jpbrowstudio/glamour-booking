@@ -80,11 +80,25 @@ export function subscribeBlocks(cb: (list: Block[]) => void) {
 export async function createBooking(b: Omit<Booking, "id" | "status" | "createdAt">) {
   const db = getDb();
   if (!db) throw new Error("Firebase no está configurado. Añade tus credenciales en src/lib/firebase.ts.");
-  return addDoc(collection(db, BOOKINGS), {
+  const write = addDoc(collection(db, BOOKINGS), {
     ...b,
     status: "pending" as BookingStatus,
     createdAt: serverTimestamp(),
   });
+  // Firestore deja la promesa pendiente para siempre si la base de datos no
+  // existe, está offline o las reglas bloquean el write. Cortamos a los 12s.
+  const timeout = new Promise<never>((_, reject) =>
+    setTimeout(
+      () =>
+        reject(
+          new Error(
+            "No se pudo guardar la reserva: revisa que Firestore esté creado en el proyecto salon-946b4 y que las reglas permitan crear en 'bookings'.",
+          ),
+        ),
+      12000,
+    ),
+  );
+  return Promise.race([write, timeout]);
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
