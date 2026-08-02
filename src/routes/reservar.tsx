@@ -106,6 +106,15 @@ function BookingPage() {
       return;
     }
     setSubmitting(true);
+    const waUrl = buildWhatsappUrl({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      serviceName: service.name,
+      date,
+      time,
+      notes: parsed.data.notes,
+    });
+    const directUrl = `${window.location.origin}/reservar?service=${service.id}`;
     try {
       const ref = await createBooking({
         name: parsed.data.name,
@@ -116,18 +125,11 @@ function BookingPage() {
         date,
         time,
       });
-      const waUrl = buildWhatsappUrl({
-        name: parsed.data.name,
-        phone: parsed.data.phone,
-        serviceName: service.name,
-        date,
-        time,
-        notes: parsed.data.notes,
-      });
-      const directUrl = `${window.location.origin}/reservar?service=${service.id}`;
       setConfirmed({ waUrl, directUrl, bookingId: ref.id });
     } catch (err) {
+      // Aunque falle el guardado, dejamos confirmar por WhatsApp.
       setErrors({ form: err instanceof Error ? err.message : "Error al reservar" });
+      setConfirmed({ waUrl, directUrl, bookingId: "" });
     } finally {
       setSubmitting(false);
     }
