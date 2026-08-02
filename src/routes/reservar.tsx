@@ -106,6 +106,15 @@ function BookingPage() {
       return;
     }
     setSubmitting(true);
+    const waUrl = buildWhatsappUrl({
+      name: parsed.data.name,
+      phone: parsed.data.phone,
+      serviceName: service.name,
+      date,
+      time,
+      notes: parsed.data.notes,
+    });
+    const directUrl = `${window.location.origin}/reservar?service=${service.id}`;
     try {
       const ref = await createBooking({
         name: parsed.data.name,
@@ -116,18 +125,11 @@ function BookingPage() {
         date,
         time,
       });
-      const waUrl = buildWhatsappUrl({
-        name: parsed.data.name,
-        phone: parsed.data.phone,
-        serviceName: service.name,
-        date,
-        time,
-        notes: parsed.data.notes,
-      });
-      const directUrl = `${window.location.origin}/reservar?service=${service.id}`;
       setConfirmed({ waUrl, directUrl, bookingId: ref.id });
     } catch (err) {
+      // Aunque falle el guardado, dejamos confirmar por WhatsApp.
       setErrors({ form: err instanceof Error ? err.message : "Error al reservar" });
+      setConfirmed({ waUrl, directUrl, bookingId: "" });
     } finally {
       setSubmitting(false);
     }
@@ -141,10 +143,17 @@ function BookingPage() {
             <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-accent/30">
               <Check className="h-7 w-7 text-primary" />
             </div>
-            <h1 className="font-serif text-2xl">¡Reserva enviada!</h1>
+            <h1 className="font-serif text-2xl">
+              {confirmed.bookingId ? "¡Reserva enviada!" : "Confirma por WhatsApp"}
+            </h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Tu cita quedó registrada. Confírmala con {BUSINESS.name} por WhatsApp para asegurar el horario.
+              {confirmed.bookingId
+                ? `Tu cita quedó registrada. Confírmala con ${BUSINESS.name} por WhatsApp para asegurar el horario.`
+                : `No pudimos guardar la cita en la agenda, pero puedes enviarla directo por WhatsApp a ${BUSINESS.name}.`}
             </p>
+            {!confirmed.bookingId && errors.form && (
+              <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{errors.form}</p>
+            )}
             <a
               href={confirmed.waUrl}
               target="_blank"
