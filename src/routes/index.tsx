@@ -9,6 +9,7 @@ import w4 from "../assets/work-4.jpg";
 import logo from "../assets/jp-brows-logo.jpg.asset.json";
 import { BUSINESS, SERVICES } from "../lib/config";
 import { buildWhatsappUrl } from "../lib/booking";
+import { InstagramCarousel } from "../components/instagram-carousel";
 
 export const Route = createFileRoute("/")({
   head: () => ({
@@ -159,6 +160,9 @@ function Landing() {
           </div>
         </div>
       </section>
+
+      <InstagramCarousel />
+
 
       {/* SERVICIOS */}
       <section id="servicios" className="py-16">
