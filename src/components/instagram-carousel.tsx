@@ -69,7 +69,7 @@ export function InstagramCarousel() {
           ref={trackRef}
           className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {INSTAGRAM_POSTS.map((post) => (
+          {posts.map((post) => (
             <a
               key={post.id}
               href={post.url}
