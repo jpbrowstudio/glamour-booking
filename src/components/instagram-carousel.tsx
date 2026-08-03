@@ -1,15 +1,33 @@
 import { useRef } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Instagram, ChevronLeft, ChevronRight, Heart } from "lucide-react";
 import { BUSINESS, INSTAGRAM_POSTS } from "../lib/config";
+import { getInstagramFeed } from "../lib/instagram.functions";
 
 export function InstagramCarousel() {
   const trackRef = useRef<HTMLDivElement>(null);
+
+  // Se actualiza solo: refresca al abrir la página, al volver a la pestaña y cada 5 min.
+  const { data } = useQuery({
+    queryKey: ["instagram-feed"],
+    queryFn: () => getInstagramFeed(),
+    staleTime: 5 * 60 * 1000,
+    refetchInterval: 5 * 60 * 1000,
+    refetchOnWindowFocus: true,
+  });
+
+  const livePosts = data?.posts ?? [];
+  const posts =
+    livePosts.length > 0
+      ? livePosts
+      : INSTAGRAM_POSTS.map((p) => ({ ...p, timestamp: "" }));
 
   const scrollBy = (dir: 1 | -1) => {
     const el = trackRef.current;
     if (!el) return;
     el.scrollBy({ left: dir * (el.clientWidth * 0.8), behavior: "smooth" });
   };
+
 
   return (
     <section id="instagram" className="border-t border-border/40 py-16">
@@ -51,7 +69,7 @@ export function InstagramCarousel() {
           ref={trackRef}
           className="flex snap-x snap-mandatory gap-4 overflow-x-auto pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >
-          {INSTAGRAM_POSTS.map((post) => (
+          {posts.map((post) => (
             <a
               key={post.id}
               href={post.url}
