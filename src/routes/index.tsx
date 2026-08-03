@@ -64,6 +64,7 @@ function Landing() {
           <div className="hidden items-center gap-6 text-sm md:flex">
             <a href="#trabajo" className="hover:text-accent">Trabajo</a>
             <a href="#servicios" className="hover:text-accent">Servicios</a>
+            <a href="#instagram" className="hover:text-accent">Instagram</a>
             <a href="#contacto" className="hover:text-accent">Contacto</a>
             <Link to="/reservar" className="rounded-full bg-primary px-4 py-2 text-primary-foreground hover:opacity-90">
               Reservar cita
