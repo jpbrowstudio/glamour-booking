@@ -20,6 +20,23 @@ export const SERVICES = [
   { id: "ritual-mirada", name: "Ritual de mirada completo", duration: 150, price: "$1,400", desc: "Laminado + henna + lifting: el cuidado integral del studio." },
 ];
 
+// Publicaciones de Instagram (edítalas aquí: pega el enlace del post y una imagen)
+import ig1 from "../assets/work-1.jpg";
+import ig2 from "../assets/work-2.jpg";
+import ig3 from "../assets/work-3.jpg";
+import ig4 from "../assets/work-4.jpg";
+import ig5 from "../assets/hero.jpg";
+
+export const INSTAGRAM_POSTS = [
+  { id: "ig-1", image: ig1, caption: "Laminado de cejas: volumen y peinado natural que dura semanas.", url: "https://instagram.com/" },
+  { id: "ig-2", image: ig2, caption: "Lifting de pestañas con nutrición y tinte incluido.", url: "https://instagram.com/" },
+  { id: "ig-3", image: ig3, caption: "Nuestra cabina: un espacio tranquilo para tu ritual de mirada.", url: "https://instagram.com/" },
+  { id: "ig-4", image: ig4, caption: "Producto premium y herramientas esterilizadas en cada servicio.", url: "https://instagram.com/" },
+  { id: "ig-5", image: ig5, caption: "Diseño de cejas a medida según tu visagismo.", url: "https://instagram.com/" },
+];
+
+
+
 
 // Horario disponible por día (formato 24h). La dueña puede bloquear días/horas desde el panel.
 export const WEEKLY_HOURS: Record<number, { start: string; end: string } | null> = {
