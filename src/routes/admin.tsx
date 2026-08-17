@@ -1,9 +1,7 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { signInWithEmailAndPassword, signOut, onAuthStateChanged, type User } from "firebase/auth";
-import { ArrowLeft, LogOut, MessageCircle, Trash2, Check, X, Ban } from "lucide-react";
+import { ArrowLeft, MessageCircle, Trash2, Check, X, Ban } from "lucide-react";
 import { BUSINESS } from "../lib/config";
-import { getFbAuth, isFirebaseConfigured } from "../lib/firebase";
 import {
   type Booking,
   type Block,
@@ -21,7 +19,7 @@ export const Route = createFileRoute("/admin")({
   head: () => ({
     meta: [
       { title: `Panel — ${BUSINESS.name}` },
-      { name: "description", content: "Panel privado de administración de citas." },
+      { name: "description", content: "Panel de organización de citas del studio." },
       { name: "robots", content: "noindex" },
     ],
   }),
@@ -33,109 +31,9 @@ function todayISO() {
 }
 
 function AdminPage() {
-  const [user, setUser] = useState<User | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [loginError, setLoginError] = useState("");
-
-  useEffect(() => {
-    const auth = getFbAuth();
-    if (!auth) {
-      setLoading(false);
-      return;
-    }
-    return onAuthStateChanged(auth, (u) => {
-      setUser(u);
-      setLoading(false);
-    });
-  }, []);
-
-  const login = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginError("");
-    const auth = getFbAuth();
-    if (!auth) {
-      setLoginError("Firebase no configurado.");
-      return;
-    }
-    try {
-      await signInWithEmailAndPassword(auth, email, password);
-    } catch (err) {
-      const code = (err as { code?: string })?.code ?? "";
-      const map: Record<string, string> = {
-        "auth/configuration-not-found":
-          "Falta activar Authentication → Sign-in method → Email/Password en la consola de Firebase.",
-        "auth/invalid-credential": "Email o contraseña incorrectos.",
-        "auth/user-not-found": "Ese usuario no existe. Créalo en Firebase → Authentication → Users.",
-        "auth/wrong-password": "Contraseña incorrecta.",
-        "auth/too-many-requests": "Demasiados intentos. Espera unos minutos.",
-        "auth/unauthorized-domain":
-          "Este dominio no está autorizado. Añádelo en Firebase → Authentication → Settings → Authorized domains.",
-      };
-      setLoginError(map[code] ?? (err instanceof Error ? err.message : "Error de acceso"));
-    }
-
-  };
-
-  const logout = async () => {
-    const auth = getFbAuth();
-    if (auth) await signOut(auth);
-  };
-
-  if (!isFirebaseConfigured) {
-    return (
-      <Wrapper>
-        <div className="rounded-2xl border border-amber-400/60 bg-amber-50 p-6 text-amber-900">
-          <h1 className="font-serif text-xl">Firebase no configurado</h1>
-          <p className="mt-2 text-sm">
-            Añade tus credenciales en <code>src/lib/firebase.ts</code> para habilitar el panel.
-          </p>
-        </div>
-      </Wrapper>
-    );
-  }
-
-  if (loading) return <Wrapper><p className="text-center text-muted-foreground">Cargando…</p></Wrapper>;
-
-  if (!user) {
-    return (
-      <Wrapper>
-        <div className="mx-auto max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
-          <h1 className="font-serif text-2xl">Panel dueña</h1>
-          <p className="mt-1 text-xs text-muted-foreground">
-            Acceso privado. Email autorizado: {BUSINESS.adminEmail}
-          </p>
-          <form onSubmit={login} className="mt-5 space-y-3">
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              placeholder="Email"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              required
-            />
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              placeholder="Contraseña"
-              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-              required
-            />
-            {loginError && <p className="text-xs text-destructive">{loginError}</p>}
-            <button className="w-full rounded-full bg-primary py-2 text-primary-foreground">
-              Entrar
-            </button>
-          </form>
-        </div>
-      </Wrapper>
-    );
-  }
-
   return (
     <Wrapper>
-      <AdminDashboard user={user} onLogout={logout} />
+      <AdminDashboard />
     </Wrapper>
   );
 }
@@ -156,7 +54,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AdminDashboard({ user, onLogout }: { user: User; onLogout: () => void }) {
+function AdminDashboard() {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayISO());
@@ -177,17 +75,11 @@ function AdminDashboard({ user, onLogout }: { user: User; onLogout: () => void }
 
   return (
     <div>
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="font-serif text-2xl">Hola, {user.email}</h1>
-          <p className="text-xs text-muted-foreground">Todas las reservas se sincronizan en tiempo real.</p>
-        </div>
-        <button
-          onClick={onLogout}
-          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm hover:bg-muted"
-        >
-          <LogOut className="h-4 w-4" /> Salir
-        </button>
+      <div className="mb-6">
+        <h1 className="font-serif text-2xl">Agenda del studio</h1>
+        <p className="text-xs text-muted-foreground">
+          Las reservas y bloqueos se guardan en este dispositivo y se organizan por WhatsApp.
+        </p>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
