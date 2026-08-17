@@ -46,7 +46,7 @@ function CookiesPage() {
 
           <h2 className="font-serif text-xl">2. Cookies de terceros</h2>
           <p>
-            Utilizamos servicios de <strong>Google Firebase</strong> (Authentication y Firestore) para
+            Utilizamos el almacenamiento local de tu navegador para
             gestionar las reservas. Estos servicios pueden establecer cookies técnicas necesarias
             para su funcionamiento.
           </p>
