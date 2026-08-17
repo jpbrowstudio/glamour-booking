@@ -76,33 +76,19 @@ export type Database = {
       }
     }
     Views: {
-      availability: {
-        Row: {
-          date: string | null
-          id: string | null
-          service_id: string | null
-          status: string | null
-          time: string | null
-        }
-        Insert: {
-          date?: string | null
-          id?: string | null
-          service_id?: string | null
-          status?: string | null
-          time?: string | null
-        }
-        Update: {
-          date?: string | null
-          id?: string | null
-          service_id?: string | null
-          status?: string | null
-          time?: string | null
-        }
-        Relationships: []
-      }
+      [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_availability: {
+        Args: { _from: string; _to: string }
+        Returns: {
+          date: string
+          id: string
+          service_id: string
+          status: string
+          time: string
+        }[]
+      }
     }
     Enums: {
       [_ in never]: never
