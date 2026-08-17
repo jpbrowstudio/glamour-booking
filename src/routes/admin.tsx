@@ -100,12 +100,17 @@ function AdminPage() {
               type="button"
               onClick={async () => {
                 setError("");
+                if (email.trim().toLowerCase() !== OWNER_EMAIL) {
+                  setError("Solo el email del studio puede crear la cuenta de dueña.");
+                  return;
+                }
                 const { error: err } = await supabase.auth.signUp({
-                  email,
+                  email: email.trim().toLowerCase(),
                   password,
                   options: { emailRedirectTo: window.location.origin + "/admin" },
                 });
                 if (err) setError(err.message);
+                else setError("Cuenta creada. Ya puedes pulsar «Entrar».");
               }}
               className="w-full rounded-full border border-border py-2 text-xs text-muted-foreground hover:bg-muted"
             >
@@ -117,12 +122,32 @@ function AdminPage() {
     );
   }
 
+  if ((session.user.email ?? "").toLowerCase() !== OWNER_EMAIL) {
+    return (
+      <Wrapper>
+        <div className="mx-auto max-w-sm rounded-2xl border border-border/60 bg-card p-6 text-center shadow-sm">
+          <h1 className="font-serif text-xl">Sin acceso</h1>
+          <p className="mt-2 text-sm text-muted-foreground">
+            Esta cuenta no está autorizada para gestionar la agenda del studio.
+          </p>
+          <button
+            onClick={() => supabase.auth.signOut()}
+            className="mt-4 rounded-full border border-border px-4 py-2 text-xs"
+          >
+            Cerrar sesión
+          </button>
+        </div>
+      </Wrapper>
+    );
+  }
+
   return (
     <Wrapper>
       <AdminDashboard email={session.user.email ?? ""} onLogout={() => supabase.auth.signOut()} />
     </Wrapper>
   );
 }
+
 
 function Wrapper({ children }: { children: React.ReactNode }) {
   return (
