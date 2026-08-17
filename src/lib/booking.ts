@@ -133,9 +133,11 @@ export function subscribeBlocks(cb: (list: Block[]) => void) {
 export async function createBooking(
   b: Omit<Booking, "id" | "status" | "createdAt">,
 ): Promise<{ id: string }> {
-  const { data, error } = await supabase
+  const id = crypto.randomUUID();
+  const { error } = await supabase
     .from("bookings")
     .insert({
+      id,
       name: b.name,
       phone: b.phone,
       service_id: b.serviceId,
@@ -144,11 +146,9 @@ export async function createBooking(
       time: b.time,
       notes: b.notes ?? null,
       status: "pending",
-    })
-    .select("id")
-    .single();
+    });
   if (error) throw new Error(error.message);
-  return { id: data.id };
+  return { id };
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
