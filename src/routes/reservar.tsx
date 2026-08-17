@@ -4,14 +4,14 @@ import { z } from "zod";
 import { ArrowLeft, Calendar as CalIcon, Check, MessageCircle } from "lucide-react";
 import { BUSINESS, SERVICES } from "../lib/config";
 import {
-  type Booking,
+  type BusySlot,
   type Block,
   buildWhatsappUrl,
   createBooking,
   generateSlots,
   isSlotTaken,
+  subscribeAvailability,
   subscribeBlocks,
-  subscribeBookingsByDate,
 } from "../lib/booking";
 
 const searchSchema = z.object({
@@ -71,11 +71,11 @@ function BookingPage() {
     bookingId: string;
   } | null>(null);
 
-  const [bookings, setBookings] = useState<Booking[]>([]);
+  const [busy, setBusy] = useState<BusySlot[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
 
   // Sincronización en tiempo real
-  useEffect(() => subscribeBookingsByDate(date, setBookings), [date]);
+  useEffect(() => subscribeAvailability(date, date, setBusy), [date]);
   useEffect(() => subscribeBlocks(setBlocks), []);
 
   const service = SERVICES.find((s) => s.id === serviceId) ?? SERVICES[0];
@@ -194,7 +194,7 @@ function BookingPage() {
           </p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl">Elige tu cita</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Elige servicio, día y hora; confirmamos por WhatsApp.
+            Disponibilidad sincronizada en tiempo real.
           </p>
         </div>
 
@@ -280,7 +280,7 @@ function BookingPage() {
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
               {slots.map((t) => {
-                const taken = isSlotTaken(t, serviceId, bookings, blocks, date);
+                const taken = isSlotTaken(t, serviceId, busy, blocks, date);
                 const selected = time === t;
                 return (
                   <button
