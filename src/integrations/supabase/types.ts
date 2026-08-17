@@ -14,10 +14,92 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      blocks: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          time: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          time?: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          time?: string
+        }
+        Relationships: []
+      }
+      bookings: {
+        Row: {
+          created_at: string
+          date: string
+          id: string
+          name: string
+          notes: string | null
+          phone: string
+          service_id: string
+          service_name: string
+          status: string
+          time: string
+        }
+        Insert: {
+          created_at?: string
+          date: string
+          id?: string
+          name: string
+          notes?: string | null
+          phone: string
+          service_id: string
+          service_name: string
+          status?: string
+          time: string
+        }
+        Update: {
+          created_at?: string
+          date?: string
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string
+          service_id?: string
+          service_name?: string
+          status?: string
+          time?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
-      [_ in never]: never
+      availability: {
+        Row: {
+          date: string | null
+          id: string | null
+          service_id: string | null
+          status: string | null
+          time: string | null
+        }
+        Insert: {
+          date?: string | null
+          id?: string | null
+          service_id?: string | null
+          status?: string | null
+          time?: string | null
+        }
+        Update: {
+          date?: string | null
+          id?: string | null
+          service_id?: string | null
+          status?: string | null
+          time?: string | null
+        }
+        Relationships: []
+      }
     }
     Functions: {
       [_ in never]: never
