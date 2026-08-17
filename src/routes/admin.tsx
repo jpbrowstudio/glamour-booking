@@ -1,6 +1,8 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import { ArrowLeft, MessageCircle, Trash2, Check, X, Ban } from "lucide-react";
+import { ArrowLeft, LogOut, MessageCircle, Trash2, Check, X, Ban } from "lucide-react";
+import type { Session } from "@supabase/supabase-js";
+import { supabase } from "@/integrations/supabase/client";
 import { BUSINESS } from "../lib/config";
 import {
   type Booking,
@@ -31,9 +33,70 @@ function todayISO() {
 }
 
 function AdminPage() {
+  const [session, setSession] = useState<Session | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((_e, s) => setSession(s));
+    supabase.auth.getSession().then(({ data: d }) => {
+      setSession(d.session);
+      setLoading(false);
+    });
+    return () => data.subscription.unsubscribe();
+  }, []);
+
+  const login = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError("");
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (err) setError(err.message === "Invalid login credentials" ? "Email o contraseña incorrectos." : err.message);
+  };
+
+  if (loading) {
+    return (
+      <Wrapper>
+        <p className="text-center text-sm text-muted-foreground">Cargando…</p>
+      </Wrapper>
+    );
+  }
+
+  if (!session) {
+    return (
+      <Wrapper>
+        <div className="mx-auto max-w-sm rounded-2xl border border-border/60 bg-card p-6 shadow-sm">
+          <h1 className="font-serif text-2xl">Panel dueña</h1>
+          <p className="mt-1 text-xs text-muted-foreground">Acceso privado al calendario del studio.</p>
+          <form onSubmit={login} className="mt-5 space-y-3">
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="Email"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              required
+            />
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Contraseña"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+              required
+            />
+            {error && <p className="text-xs text-destructive">{error}</p>}
+            <button className="w-full rounded-full bg-primary py-2 text-primary-foreground">Entrar</button>
+          </form>
+        </div>
+      </Wrapper>
+    );
+  }
+
   return (
     <Wrapper>
-      <AdminDashboard />
+      <AdminDashboard email={session.user.email ?? ""} onLogout={() => supabase.auth.signOut()} />
     </Wrapper>
   );
 }
@@ -54,7 +117,7 @@ function Wrapper({ children }: { children: React.ReactNode }) {
   );
 }
 
-function AdminDashboard() {
+function AdminDashboard({ email, onLogout }: { email: string; onLogout: () => void }) {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
   const [selectedDate, setSelectedDate] = useState(todayISO());
@@ -75,11 +138,19 @@ function AdminDashboard() {
 
   return (
     <div>
-      <div className="mb-6">
-        <h1 className="font-serif text-2xl">Agenda del studio</h1>
-        <p className="text-xs text-muted-foreground">
-          Las reservas y bloqueos se guardan en este dispositivo y se organizan por WhatsApp.
-        </p>
+      <div className="mb-6 flex items-center justify-between gap-4">
+        <div>
+          <h1 className="font-serif text-2xl">Hola, {email}</h1>
+          <p className="text-xs text-muted-foreground">
+            Reservas y bloqueos sincronizados en tiempo real; confirma por WhatsApp.
+          </p>
+        </div>
+        <button
+          onClick={onLogout}
+          className="inline-flex items-center gap-2 rounded-full border border-border px-4 py-2 text-sm hover:bg-muted"
+        >
+          <LogOut className="h-4 w-4" /> Salir
+        </button>
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
