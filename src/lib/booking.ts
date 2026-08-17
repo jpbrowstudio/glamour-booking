@@ -1,3 +1,4 @@
+import { supabase } from "@/integrations/supabase/client";
 import { BUSINESS, SLOT_MINUTES, WEEKLY_HOURS, SERVICES } from "./config";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
@@ -12,100 +13,162 @@ export interface Booking {
   time: string; // HH:mm
   notes?: string;
   status: BookingStatus;
-  createdAt?: number;
+  createdAt?: string;
+}
+
+/** Cita ocupada sin datos personales (disponibilidad pública). */
+export interface BusySlot {
+  id: string;
+  date: string;
+  time: string;
+  serviceId: string;
+  status: BookingStatus;
 }
 
 export interface Block {
   id: string;
   date: string;
-  time?: string; // si está vacío, día completo bloqueado
+  time?: string; // vacío = día completo bloqueado
 }
 
-const BOOKINGS_KEY = "jp-brows:bookings";
-const BLOCKS_KEY = "jp-brows:blocks";
-const EVENT = "jp-brows:store-change";
+type BookingRow = {
+  id: string;
+  name: string;
+  phone: string;
+  service_id: string;
+  service_name: string;
+  date: string;
+  time: string;
+  notes: string | null;
+  status: string;
+  created_at: string;
+};
 
-function read<T>(key: string): T[] {
-  if (typeof window === "undefined") return [];
-  try {
-    const raw = window.localStorage.getItem(key);
-    return raw ? (JSON.parse(raw) as T[]) : [];
-  } catch {
-    return [];
-  }
-}
-
-function write<T>(key: string, list: T[]) {
-  if (typeof window === "undefined") return;
-  window.localStorage.setItem(key, JSON.stringify(list));
-  window.dispatchEvent(new CustomEvent(EVENT));
-}
-
-function subscribe<T>(key: string, map: (list: T[]) => T[], cb: (list: T[]) => void) {
-  const emit = () => cb(map(read<T>(key)));
-  emit();
-  if (typeof window === "undefined") return () => {};
-  window.addEventListener(EVENT, emit);
-  window.addEventListener("storage", emit);
-  return () => {
-    window.removeEventListener(EVENT, emit);
-    window.removeEventListener("storage", emit);
+function mapBooking(r: BookingRow): Booking {
+  return {
+    id: r.id,
+    name: r.name,
+    phone: r.phone,
+    serviceId: r.service_id,
+    serviceName: r.service_name,
+    date: r.date,
+    time: r.time,
+    notes: r.notes ?? undefined,
+    status: r.status as BookingStatus,
+    createdAt: r.created_at,
   };
 }
 
-function uid() {
-  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+/** Disponibilidad pública (sin PII) de un rango de fechas, con realtime. */
+export function subscribeAvailability(
+  from: string,
+  to: string,
+  cb: (list: BusySlot[]) => void,
+) {
+  let active = true;
+  const load = async () => {
+    const { data } = await supabase.rpc("get_availability", { _from: from, _to: to });
+    if (!active) return;
+    cb(
+      (data ?? []).map((r) => ({
+        id: r.id,
+        date: r.date,
+        time: r.time,
+        serviceId: r.service_id,
+        status: r.status as BookingStatus,
+      })),
+    );
+  };
+  load();
+  const channel = supabase
+    .channel(`availability-${from}-${to}`)
+    .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => load())
+    .subscribe();
+  return () => {
+    active = false;
+    supabase.removeChannel(channel);
+  };
 }
 
-export function subscribeBookingsByDate(date: string, cb: (list: Booking[]) => void) {
-  return subscribe<Booking>(BOOKINGS_KEY, (list) => list.filter((b) => b.date === date), cb);
-}
-
+/** Todas las reservas (solo dueña autenticada), con realtime. */
 export function subscribeAllBookings(cb: (list: Booking[]) => void) {
-  return subscribe<Booking>(
-    BOOKINGS_KEY,
-    (list) => [...list].sort((a, b) => a.date.localeCompare(b.date)),
-    cb,
-  );
+  let active = true;
+  const load = async () => {
+    const { data } = await supabase
+      .from("bookings")
+      .select("*")
+      .order("date", { ascending: true })
+      .order("time", { ascending: true });
+    if (active) cb(((data ?? []) as BookingRow[]).map(mapBooking));
+  };
+  load();
+  const channel = supabase
+    .channel("bookings-admin")
+    .on("postgres_changes", { event: "*", schema: "public", table: "bookings" }, () => load())
+    .subscribe();
+  return () => {
+    active = false;
+    supabase.removeChannel(channel);
+  };
 }
 
 export function subscribeBlocks(cb: (list: Block[]) => void) {
-  return subscribe<Block>(BLOCKS_KEY, (list) => list, cb);
+  let active = true;
+  const load = async () => {
+    const { data } = await supabase.from("blocks").select("*");
+    if (active)
+      cb((data ?? []).map((b) => ({ id: b.id, date: b.date, time: b.time || undefined })));
+  };
+  load();
+  const channel = supabase
+    .channel("blocks-all")
+    .on("postgres_changes", { event: "*", schema: "public", table: "blocks" }, () => load())
+    .subscribe();
+  return () => {
+    active = false;
+    supabase.removeChannel(channel);
+  };
 }
 
 export async function createBooking(
   b: Omit<Booking, "id" | "status" | "createdAt">,
 ): Promise<{ id: string }> {
-  const list = read<Booking>(BOOKINGS_KEY);
-  const booking: Booking = { ...b, id: uid(), status: "pending", createdAt: Date.now() };
-  write(BOOKINGS_KEY, [...list, booking]);
-  return { id: booking.id };
+  const { data, error } = await supabase
+    .from("bookings")
+    .insert({
+      name: b.name,
+      phone: b.phone,
+      service_id: b.serviceId,
+      service_name: b.serviceName,
+      date: b.date,
+      time: b.time,
+      notes: b.notes ?? null,
+      status: "pending",
+    })
+    .select("id")
+    .single();
+  if (error) throw new Error(error.message);
+  return { id: data.id };
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
-  const list = read<Booking>(BOOKINGS_KEY);
-  write(
-    BOOKINGS_KEY,
-    list.map((b) => (b.id === id ? { ...b, status } : b)),
-  );
+  const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function removeBooking(id: string) {
-  write(
-    BOOKINGS_KEY,
-    read<Booking>(BOOKINGS_KEY).filter((b) => b.id !== id),
-  );
+  const { error } = await supabase.from("bookings").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 export async function addBlock(date: string, time?: string) {
-  write(BLOCKS_KEY, [...read<Block>(BLOCKS_KEY), { id: uid(), date, time: time ?? "" }]);
+  const { error } = await supabase.from("blocks").insert({ date, time: time ?? "" });
+  if (error) throw new Error(error.message);
 }
 
 export async function removeBlock(id: string) {
-  write(
-    BLOCKS_KEY,
-    read<Block>(BLOCKS_KEY).filter((b) => b.id !== id),
-  );
+  const { error } = await supabase.from("blocks").delete().eq("id", id);
+  if (error) throw new Error(error.message);
 }
 
 // Genera los slots del día basado en horario semanal
@@ -131,7 +194,7 @@ export function generateSlots(date: string): string[] {
 export function isSlotTaken(
   time: string,
   serviceId: string,
-  bookings: Booking[],
+  busy: Array<{ date: string; time: string; serviceId: string; status: BookingStatus }>,
   blocks: Block[],
   date: string,
 ): boolean {
@@ -142,8 +205,8 @@ export function isSlotTaken(
   const [h, m] = time.split(":").map(Number);
   const startMins = h * 60 + m;
   const endMins = startMins + duration;
-  return bookings.some((b) => {
-    if (b.status === "cancelled") return false;
+  return busy.some((b) => {
+    if (b.date !== date || b.status === "cancelled") return false;
     const svc = SERVICES.find((s) => s.id === b.serviceId);
     const bDur = svc?.duration ?? 60;
     const [bh, bm] = b.time.split(":").map(Number);
