@@ -89,6 +89,7 @@ export type Database = {
           time: string
         }[]
       }
+      is_studio_owner: { Args: never; Returns: boolean }
     }
     Enums: {
       [_ in never]: never
