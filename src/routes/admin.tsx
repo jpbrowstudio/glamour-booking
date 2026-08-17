@@ -51,9 +51,14 @@ function AdminPage() {
   const login = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
-    const { error: err } = await supabase.auth.signInWithPassword({ email, password });
+    if (email.trim().toLowerCase() !== OWNER_EMAIL) {
+      setError("Esta cuenta no tiene acceso al panel del studio.");
+      return;
+    }
+    const { error: err } = await supabase.auth.signInWithPassword({ email: email.trim().toLowerCase(), password });
     if (err) setError(err.message === "Invalid login credentials" ? "Email o contraseña incorrectos." : err.message);
   };
+
 
   if (loading) {
     return (
