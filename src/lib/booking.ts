@@ -1,17 +1,3 @@
-import {
-  collection,
-  addDoc,
-  onSnapshot,
-  query,
-  where,
-  orderBy,
-  doc,
-  updateDoc,
-  deleteDoc,
-  serverTimestamp,
-  Timestamp,
-} from "firebase/firestore";
-import { getDb } from "./firebase";
 import { BUSINESS, SLOT_MINUTES, WEEKLY_HOURS, SERVICES } from "./config";
 
 export type BookingStatus = "pending" | "confirmed" | "cancelled";
@@ -26,103 +12,100 @@ export interface Booking {
   time: string; // HH:mm
   notes?: string;
   status: BookingStatus;
-  createdAt?: Timestamp;
+  createdAt?: number;
 }
 
 export interface Block {
   id: string;
   date: string;
-  time?: string; // if empty, whole day blocked
+  time?: string; // si está vacío, día completo bloqueado
 }
 
-const BOOKINGS = "bookings";
-const BLOCKS = "blocks";
+const BOOKINGS_KEY = "jp-brows:bookings";
+const BLOCKS_KEY = "jp-brows:blocks";
+const EVENT = "jp-brows:store-change";
 
-export function subscribeBookingsByDate(
-  date: string,
-  cb: (list: Booking[]) => void,
-) {
-  const db = getDb();
-  if (!db) {
-    cb([]);
-    return () => {};
+function read<T>(key: string): T[] {
+  if (typeof window === "undefined") return [];
+  try {
+    const raw = window.localStorage.getItem(key);
+    return raw ? (JSON.parse(raw) as T[]) : [];
+  } catch {
+    return [];
   }
-  const q = query(collection(db, BOOKINGS), where("date", "==", date));
-  return onSnapshot(q, (snap) => {
-    const list = snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Booking, "id">) }));
-    cb(list);
-  });
+}
+
+function write<T>(key: string, list: T[]) {
+  if (typeof window === "undefined") return;
+  window.localStorage.setItem(key, JSON.stringify(list));
+  window.dispatchEvent(new CustomEvent(EVENT));
+}
+
+function subscribe<T>(key: string, map: (list: T[]) => T[], cb: (list: T[]) => void) {
+  const emit = () => cb(map(read<T>(key)));
+  emit();
+  if (typeof window === "undefined") return () => {};
+  window.addEventListener(EVENT, emit);
+  window.addEventListener("storage", emit);
+  return () => {
+    window.removeEventListener(EVENT, emit);
+    window.removeEventListener("storage", emit);
+  };
+}
+
+function uid() {
+  return Math.random().toString(36).slice(2) + Date.now().toString(36);
+}
+
+export function subscribeBookingsByDate(date: string, cb: (list: Booking[]) => void) {
+  return subscribe<Booking>(BOOKINGS_KEY, (list) => list.filter((b) => b.date === date), cb);
 }
 
 export function subscribeAllBookings(cb: (list: Booking[]) => void) {
-  const db = getDb();
-  if (!db) {
-    cb([]);
-    return () => {};
-  }
-  const q = query(collection(db, BOOKINGS), orderBy("date", "asc"));
-  return onSnapshot(q, (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Booking, "id">) })));
-  });
+  return subscribe<Booking>(
+    BOOKINGS_KEY,
+    (list) => [...list].sort((a, b) => a.date.localeCompare(b.date)),
+    cb,
+  );
 }
 
 export function subscribeBlocks(cb: (list: Block[]) => void) {
-  const db = getDb();
-  if (!db) {
-    cb([]);
-    return () => {};
-  }
-  return onSnapshot(collection(db, BLOCKS), (snap) => {
-    cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as Omit<Block, "id">) })));
-  });
+  return subscribe<Block>(BLOCKS_KEY, (list) => list, cb);
 }
 
-export async function createBooking(b: Omit<Booking, "id" | "status" | "createdAt">) {
-  const db = getDb();
-  if (!db) throw new Error("Firebase no está configurado. Añade tus credenciales en src/lib/firebase.ts.");
-  const write = addDoc(collection(db, BOOKINGS), {
-    ...b,
-    status: "pending" as BookingStatus,
-    createdAt: serverTimestamp(),
-  });
-  // Firestore deja la promesa pendiente para siempre si la base de datos no
-  // existe, está offline o las reglas bloquean el write. Cortamos a los 12s.
-  const timeout = new Promise<never>((_, reject) =>
-    setTimeout(
-      () =>
-        reject(
-          new Error(
-            "No se pudo guardar la reserva: revisa que Firestore esté creado en el proyecto salon-946b4 y que las reglas permitan crear en 'bookings'.",
-          ),
-        ),
-      12000,
-    ),
-  );
-  return Promise.race([write, timeout]);
+export async function createBooking(
+  b: Omit<Booking, "id" | "status" | "createdAt">,
+): Promise<{ id: string }> {
+  const list = read<Booking>(BOOKINGS_KEY);
+  const booking: Booking = { ...b, id: uid(), status: "pending", createdAt: Date.now() };
+  write(BOOKINGS_KEY, [...list, booking]);
+  return { id: booking.id };
 }
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
-  const db = getDb();
-  if (!db) throw new Error("Firebase no configurado");
-  return updateDoc(doc(db, BOOKINGS, id), { status });
+  const list = read<Booking>(BOOKINGS_KEY);
+  write(
+    BOOKINGS_KEY,
+    list.map((b) => (b.id === id ? { ...b, status } : b)),
+  );
 }
 
 export async function removeBooking(id: string) {
-  const db = getDb();
-  if (!db) throw new Error("Firebase no configurado");
-  return deleteDoc(doc(db, BOOKINGS, id));
+  write(
+    BOOKINGS_KEY,
+    read<Booking>(BOOKINGS_KEY).filter((b) => b.id !== id),
+  );
 }
 
 export async function addBlock(date: string, time?: string) {
-  const db = getDb();
-  if (!db) throw new Error("Firebase no configurado");
-  return addDoc(collection(db, BLOCKS), { date, time: time ?? "" });
+  write(BLOCKS_KEY, [...read<Block>(BLOCKS_KEY), { id: uid(), date, time: time ?? "" }]);
 }
 
 export async function removeBlock(id: string) {
-  const db = getDb();
-  if (!db) throw new Error("Firebase no configurado");
-  return deleteDoc(doc(db, BLOCKS, id));
+  write(
+    BLOCKS_KEY,
+    read<Block>(BLOCKS_KEY).filter((b) => b.id !== id),
+  );
 }
 
 // Genera los slots del día basado en horario semanal
@@ -152,16 +135,13 @@ export function isSlotTaken(
   blocks: Block[],
   date: string,
 ): boolean {
-  // día bloqueado completo
   if (blocks.some((b) => b.date === date && !b.time)) return true;
-  // hora bloqueada
   if (blocks.some((b) => b.date === date && b.time === time)) return true;
   const service = SERVICES.find((s) => s.id === serviceId);
   const duration = service?.duration ?? 60;
   const [h, m] = time.split(":").map(Number);
   const startMins = h * 60 + m;
   const endMins = startMins + duration;
-  // colisión con reservas existentes (no canceladas)
   return bookings.some((b) => {
     if (b.status === "cancelled") return false;
     const svc = SERVICES.find((s) => s.id === b.serviceId);

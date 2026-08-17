@@ -63,7 +63,7 @@ function LegalPage({ title }: { title: string }) {
 
           <h2 className="mt-6 font-serif text-xl">6. Seguridad</h2>
           <p>
-            Almacenamos tus datos en servicios seguros de Google Firebase, con acceso restringido
+            Tus datos de reserva se guardan en el navegador y se envían por WhatsApp, con acceso restringido
             únicamente al personal autorizado.
           </p>
 

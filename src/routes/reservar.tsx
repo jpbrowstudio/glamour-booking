@@ -13,7 +13,6 @@ import {
   subscribeBlocks,
   subscribeBookingsByDate,
 } from "../lib/booking";
-import { isFirebaseConfigured } from "../lib/firebase";
 
 const searchSchema = z.object({
   service: z.string().optional(),
@@ -99,10 +98,6 @@ function BookingPage() {
       const e: Record<string, string> = {};
       parsed.error.issues.forEach((i) => (e[i.path.join(".")] = i.message));
       setErrors(e);
-      return;
-    }
-    if (!isFirebaseConfigured) {
-      setErrors({ form: "Firebase aún no está configurado. Añade tus credenciales en src/lib/firebase.ts." });
       return;
     }
     setSubmitting(true);
@@ -199,16 +194,9 @@ function BookingPage() {
           </p>
           <h1 className="mt-2 font-serif text-3xl md:text-4xl">Elige tu cita</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Disponibilidad actualizada en tiempo real.
+            Elige servicio, día y hora; confirmamos por WhatsApp.
           </p>
         </div>
-
-        {!isFirebaseConfigured && (
-          <div className="mb-6 rounded-2xl border border-amber-400/60 bg-amber-50 p-4 text-sm text-amber-900">
-            <strong>Firebase no está configurado.</strong> Añade tus credenciales en{" "}
-            <code>src/lib/firebase.ts</code> o define las variables <code>VITE_FIREBASE_*</code>.
-          </div>
-        )}
 
         {/* Paso 1: servicio */}
         <section className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
