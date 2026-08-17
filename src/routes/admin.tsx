@@ -28,9 +28,12 @@ export const Route = createFileRoute("/admin")({
   component: AdminPage,
 });
 
+const OWNER_EMAIL = BUSINESS.adminEmail.toLowerCase();
+
 function todayISO() {
   return new Date().toISOString().slice(0, 10);
 }
+
 
 function AdminPage() {
   const [session, setSession] = useState<Session | null>(null);
