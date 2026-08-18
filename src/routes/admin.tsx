@@ -96,26 +96,9 @@ function AdminPage() {
             />
             {error && <p className="text-xs text-destructive">{error}</p>}
             <button className="w-full rounded-full bg-primary py-2 text-primary-foreground">Entrar</button>
-            <button
-              type="button"
-              onClick={async () => {
-                setError("");
-                if (email.trim().toLowerCase() !== OWNER_EMAIL) {
-                  setError("Solo el email del studio puede crear la cuenta de dueña.");
-                  return;
-                }
-                const { error: err } = await supabase.auth.signUp({
-                  email: email.trim().toLowerCase(),
-                  password,
-                  options: { emailRedirectTo: window.location.origin + "/admin" },
-                });
-                if (err) setError(err.message);
-                else setError("Cuenta creada. Ya puedes pulsar «Entrar».");
-              }}
-              className="w-full rounded-full border border-border py-2 text-xs text-muted-foreground hover:bg-muted"
-            >
-              Primera vez: crear mi cuenta de dueña
-            </button>
+            <p className="text-center text-[11px] text-muted-foreground">
+              Acceso reservado a la dueña del studio.
+            </p>
           </form>
         </div>
       </Wrapper>
