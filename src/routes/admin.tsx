@@ -351,6 +351,25 @@ function ReservasTab() {
     return true;
   });
 
+  const avisarPorCorreo = (
+    b: Booking,
+    kind: "confirmada" | "cancelada" | "reprogramada" | "recordatorio",
+  ) => {
+    if (!b.email) return;
+    notifyBookingStatus({ data: { bookingId: b.id, kind } }).catch((e: unknown) =>
+      console.error("No se pudo enviar el correo", e),
+    );
+  };
+
+  const cambiarEstado = async (
+    b: Booking,
+    status: "confirmed" | "cancelled" | "realizada",
+  ) => {
+    await updateBookingStatus(b.id, status);
+    if (status === "confirmed") avisarPorCorreo(b, "confirmada");
+    if (status === "cancelled") avisarPorCorreo(b, "cancelada");
+  };
+
   const reprogramar = async (b: Booking) => {
     const nuevaFecha = prompt("Nueva fecha (AAAA-MM-DD):", b.date);
     if (!nuevaFecha) return;
@@ -358,6 +377,7 @@ function ReservasTab() {
     if (!nuevaHora) return;
     try {
       await rescheduleBooking(b.id, nuevaFecha, nuevaHora);
+      avisarPorCorreo({ ...b, date: nuevaFecha, time: nuevaHora }, "reprogramada");
     } catch (e) {
       alert(e instanceof Error ? e.message : "No se pudo reprogramar");
     }
@@ -370,6 +390,7 @@ function ReservasTab() {
     );
     if (valor === null) return;
     await setBookingReminder(b.id, valor ? new Date(valor).toISOString() : null);
+    if (valor) avisarPorCorreo(b, "recordatorio");
   };
 
   return (
