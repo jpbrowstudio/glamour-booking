@@ -33,6 +33,9 @@ import {
   subscribeBlocks,
   updateBookingStatus,
 } from "../lib/booking";
+import { notifyBookingStatus } from "../lib/email.functions";
+import {
+} from "../lib/booking";
 import {
   type HoraDisponible,
   type ImagenCarrusel,
