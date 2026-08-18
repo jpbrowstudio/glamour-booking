@@ -257,21 +257,44 @@ export function isSlotTaken(
 }
 
 
-export function buildWhatsappUrl(booking: {
-  name: string;
-  phone: string;
-  serviceName: string;
-  date: string;
-  time: string;
-  notes?: string;
-}) {
+export function buildWhatsappUrl(
+  booking: {
+    name: string;
+    phone: string;
+    serviceName: string;
+    date: string;
+    time: string;
+    notes?: string;
+    email?: string;
+    areaCode?: string;
+  },
+  targetPhone?: string,
+) {
   const msg =
     `Hola! Quiero confirmar mi reserva en ${BUSINESS.name}:\n\n` +
     `👤 ${booking.name}\n` +
-    `📞 ${booking.phone}\n` +
+    `📞 ${booking.areaCode ?? ""} ${booking.phone}\n` +
+    (booking.email ? `✉️ ${booking.email}\n` : "") +
     `💇 Servicio: ${booking.serviceName}\n` +
     `📅 ${booking.date} a las ${booking.time}\n` +
     (booking.notes ? `📝 Notas: ${booking.notes}\n` : "") +
     `\n¡Gracias!`;
-  return `https://wa.me/${BUSINESS.whatsapp}?text=${encodeURIComponent(msg)}`;
+  const to = (targetPhone ?? BUSINESS.whatsapp).replace(/[^0-9]/g, "");
+  return `https://wa.me/${to}?text=${encodeURIComponent(msg)}`;
 }
+
+/** Mensaje que la dueña envía al cliente al aceptar / cancelar / reprogramar. */
+export function buildClientWhatsappUrl(
+  booking: { name: string; phone: string; areaCode: string; serviceName: string; date: string; time: string },
+  estado: "aceptada" | "cancelada" | "reprogramada" | "recordatorio",
+) {
+  const textos: Record<typeof estado, string> = {
+    aceptada: `¡Hola ${booking.name}! Tu cita de ${booking.serviceName} quedó CONFIRMADA para el ${booking.date} a las ${booking.time}. ¡Te esperamos en ${BUSINESS.name}!`,
+    cancelada: `Hola ${booking.name}, lamentamos informarte que tu cita de ${booking.serviceName} del ${booking.date} a las ${booking.time} fue cancelada. Escríbenos para reagendar.`,
+    reprogramada: `Hola ${booking.name}, tu cita de ${booking.serviceName} se reprogramó para el ${booking.date} a las ${booking.time}. ¿Te queda bien?`,
+    recordatorio: `Hola ${booking.name}! Te recordamos tu cita de ${booking.serviceName} el ${booking.date} a las ${booking.time}. ¡Te esperamos!`,
+  };
+  const to = `${booking.areaCode}${booking.phone}`.replace(/[^0-9]/g, "");
+  return `https://wa.me/${to}?text=${encodeURIComponent(textos[estado])}`;
+}
+
