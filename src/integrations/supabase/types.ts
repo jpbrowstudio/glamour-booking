@@ -37,40 +37,187 @@ export type Database = {
       }
       bookings: {
         Row: {
+          anio: number | null
+          area_code: string
           created_at: string
           date: string
+          dia: number | null
+          email: string
           id: string
+          mes: number | null
           name: string
           notes: string | null
           phone: string
+          reminder_at: string | null
           service_id: string
           service_name: string
           status: string
           time: string
         }
         Insert: {
+          anio?: number | null
+          area_code?: string
           created_at?: string
           date: string
+          dia?: number | null
+          email?: string
           id?: string
+          mes?: number | null
           name: string
           notes?: string | null
           phone: string
+          reminder_at?: string | null
           service_id: string
           service_name: string
           status?: string
           time: string
         }
         Update: {
+          anio?: number | null
+          area_code?: string
           created_at?: string
           date?: string
+          dia?: number | null
+          email?: string
           id?: string
+          mes?: number | null
           name?: string
           notes?: string | null
           phone?: string
+          reminder_at?: string | null
           service_id?: string
           service_name?: string
           status?: string
           time?: string
+        }
+        Relationships: []
+      }
+      carrusel: {
+        Row: {
+          activo: boolean
+          created_at: string
+          id_imagen: number
+          imagen_url: string
+          orden: number
+          storage_path: string | null
+          titulo: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          id_imagen?: never
+          imagen_url: string
+          orden?: number
+          storage_path?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          id_imagen?: never
+          imagen_url?: string
+          orden?: number
+          storage_path?: string | null
+          titulo?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      horas_disponibles: {
+        Row: {
+          activo: boolean
+          created_at: string
+          dia_semana: number | null
+          hora: string
+          id_hora: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          dia_semana?: number | null
+          hora: string
+          id_hora?: never
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          dia_semana?: number | null
+          hora?: string
+          id_hora?: never
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      servicios: {
+        Row: {
+          activo: boolean
+          created_at: string
+          detalle_s: string
+          duracion_min: number
+          id_servicio: number
+          nombre_s: string
+          orden: number
+          precio_s: number
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          created_at?: string
+          detalle_s?: string
+          duracion_min?: number
+          id_servicio?: never
+          nombre_s: string
+          orden?: number
+          precio_s?: number
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          created_at?: string
+          detalle_s?: string
+          duracion_min?: number
+          id_servicio?: never
+          nombre_s?: string
+          orden?: number
+          precio_s?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      usuarios: {
+        Row: {
+          activo: boolean
+          correo: string
+          created_at: string
+          id_usuario: number
+          msn_whatsapp: string
+          nombre: string
+          telefono: string
+          updated_at: string
+        }
+        Insert: {
+          activo?: boolean
+          correo: string
+          created_at?: string
+          id_usuario?: never
+          msn_whatsapp?: string
+          nombre: string
+          telefono: string
+          updated_at?: string
+        }
+        Update: {
+          activo?: boolean
+          correo?: string
+          created_at?: string
+          id_usuario?: never
+          msn_whatsapp?: string
+          nombre?: string
+          telefono?: string
+          updated_at?: string
         }
         Relationships: []
       }
