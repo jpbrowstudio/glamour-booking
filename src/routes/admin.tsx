@@ -17,6 +17,11 @@ import {
 } from "lucide-react";
 import type { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
+import workA from "../assets/work-1.jpg";
+import workB from "../assets/work-2.jpg";
+import workC from "../assets/work-3.jpg";
+import workD from "../assets/work-4.jpg";
+import heroImg from "../assets/hero.jpg";
 import { BUSINESS } from "../lib/config";
 import {
   type Booking,
