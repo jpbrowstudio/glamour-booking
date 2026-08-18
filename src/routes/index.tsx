@@ -7,8 +7,16 @@ import w2 from "../assets/work-2.jpg";
 import w3 from "../assets/work-3.jpg";
 import w4 from "../assets/work-4.jpg";
 import logo from "../assets/jp-brows-logo.jpg.asset.json";
-import { BUSINESS, SERVICES } from "../lib/config";
+import { BUSINESS } from "../lib/config";
 import { buildWhatsappUrl } from "../lib/booking";
+import {
+  type ImagenCarrusel,
+  type Servicio,
+  type UsuarioAdmin,
+  getUsuarioActivo,
+  listCarrusel,
+  listServicios,
+} from "../lib/catalogo";
 import { InstagramCarousel } from "../components/instagram-carousel";
 
 export const Route = createFileRoute("/")({
@@ -35,14 +43,33 @@ const IMAGES = [
 
 function Landing() {
   const [slide, setSlide] = useState(0);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [galeria, setGaleria] = useState<ImagenCarrusel[]>([]);
+  const [owner, setOwner] = useState<UsuarioAdmin | null>(null);
 
   useEffect(() => {
-    const t = setInterval(() => setSlide((s) => (s + 1) % IMAGES.length), 4000);
-    return () => clearInterval(t);
+    listServicios(true).then(setServicios).catch(() => undefined);
+    listCarrusel(true).then(setGaleria).catch(() => undefined);
+    getUsuarioActivo().then(setOwner).catch(() => undefined);
   }, []);
 
-  const waUrl = `https://wa.me/${BUSINESS.whatsapp}?text=${encodeURIComponent(
-    `Hola ${BUSINESS.name}! Me gustaría hacer una consulta.`,
+  const images =
+    galeria.length > 0
+      ? galeria.map((g) => ({ src: g.imagen_url, alt: g.titulo || "Trabajo del studio" }))
+      : IMAGES;
+
+  useEffect(() => {
+    setSlide(0);
+  }, [galeria.length]);
+
+  useEffect(() => {
+    const t = setInterval(() => setSlide((s) => (s + 1) % images.length), 4000);
+    return () => clearInterval(t);
+  }, [images.length]);
+
+  const waPhone = (owner?.telefono ?? BUSINESS.whatsapp).replace(/[^0-9]/g, "");
+  const waUrl = `https://wa.me/${waPhone}?text=${encodeURIComponent(
+    owner?.msn_whatsapp ?? `Hola ${BUSINESS.name}! Me gustaría hacer una consulta.`,
   )}`;
 
   return (
@@ -119,7 +146,7 @@ function Landing() {
               <h2 className="font-serif text-3xl md:text-4xl">Nuestro trabajo</h2>
             </div>
             <div className="hidden gap-1 md:flex">
-              {IMAGES.map((_, i) => (
+              {images.map((_, i) => (
                 <button
                   key={i}
                   aria-label={`Ir a slide ${i + 1}`}
@@ -132,7 +159,7 @@ function Landing() {
 
           {/* carrusel principal */}
           <div className="relative aspect-[16/10] overflow-hidden rounded-3xl bg-card shadow-lg">
-            {IMAGES.map((img, i) => (
+            {images.map((img, i) => (
               <img
                 key={img.src}
                 src={img.src}
@@ -147,7 +174,7 @@ function Landing() {
 
           {/* grid mini */}
           <div className="mt-4 grid grid-cols-4 gap-2 md:gap-4">
-            {IMAGES.map((img, i) => (
+            {images.map((img, i) => (
               <button
                 key={img.src}
                 onClick={() => setSlide(i)}
@@ -173,22 +200,22 @@ function Landing() {
             <h2 className="font-serif text-3xl md:text-4xl">Lo que ofrecemos</h2>
           </div>
           <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
-            {SERVICES.map((s) => (
+            {servicios.map((s) => (
               <div
-                key={s.id}
+                key={s.id_servicio}
                 className="group rounded-2xl border border-border/60 bg-card p-6 shadow-sm transition-shadow hover:shadow-md"
               >
                 <div className="mb-3 flex items-center justify-between">
                   <Eye className="h-5 w-5 text-accent" />
-                  <span className="text-sm font-medium text-muted-foreground">{s.duration} min</span>
+                  <span className="text-sm font-medium text-muted-foreground">{s.duracion_min} min</span>
                 </div>
-                <h3 className="font-serif text-xl">{s.name}</h3>
-                <p className="mt-2 text-sm text-muted-foreground">{s.desc}</p>
+                <h3 className="font-serif text-xl">{s.nombre_s}</h3>
+                <p className="mt-2 text-sm text-muted-foreground">{s.detalle_s}</p>
                 <div className="mt-4 flex items-center justify-between">
-                  <span className="font-serif text-2xl">{s.price}</span>
+                  <span className="font-serif text-2xl">${s.precio_s}</span>
                   <Link
                     to="/reservar"
-                    search={{ service: s.id }}
+                    search={{ service: String(s.id_servicio) }}
                     className="rounded-full bg-primary px-4 py-2 text-sm text-primary-foreground hover:opacity-90"
                   >
                     Reservar
@@ -238,7 +265,7 @@ function Landing() {
             </p>
             <ul className="mt-6 space-y-3 text-sm">
               <li className="flex items-center gap-3">
-                <MessageCircle className="h-4 w-4 text-accent" /> {BUSINESS.whatsappDisplay}
+                <MessageCircle className="h-4 w-4 text-accent" /> {owner?.telefono ? `+${owner.telefono}` : BUSINESS.whatsappDisplay}
               </li>
               <li className="flex items-center gap-3">
                 <MapPin className="h-4 w-4 text-accent" /> {BUSINESS.location}
