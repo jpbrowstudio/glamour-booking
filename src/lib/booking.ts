@@ -220,30 +220,42 @@ export function generateSlots(date: string): string[] {
   return slots;
 }
 
+/** Slots a partir de la tabla horas_disponibles (si hay filas para ese día). */
+export function slotsFromHoras(
+  horas: Array<{ hora: string; dia_semana: number | null; activo: boolean }>,
+  date: string,
+): string[] {
+  const dow = new Date(date + "T00:00:00").getDay();
+  const list = horas
+    .filter((h) => h.activo && (h.dia_semana === null || h.dia_semana === dow))
+    .map((h) => h.hora);
+  return Array.from(new Set(list)).sort();
+}
+
 export function isSlotTaken(
   time: string,
-  serviceId: string,
+  durationMin: number,
   busy: Array<{ date: string; time: string; serviceId: string; status: BookingStatus }>,
   blocks: Block[],
   date: string,
+  durationById: Record<string, number> = {},
 ): boolean {
   if (blocks.some((b) => b.date === date && !b.time)) return true;
   if (blocks.some((b) => b.date === date && b.time === time)) return true;
-  const service = SERVICES.find((s) => s.id === serviceId);
-  const duration = service?.duration ?? 60;
   const [h, m] = time.split(":").map(Number);
   const startMins = h * 60 + m;
-  const endMins = startMins + duration;
+  const endMins = startMins + durationMin;
   return busy.some((b) => {
     if (b.date !== date || b.status === "cancelled") return false;
-    const svc = SERVICES.find((s) => s.id === b.serviceId);
-    const bDur = svc?.duration ?? 60;
+    const bDur =
+      durationById[b.serviceId] ?? SERVICES.find((s) => s.id === b.serviceId)?.duration ?? 60;
     const [bh, bm] = b.time.split(":").map(Number);
     const bStart = bh * 60 + bm;
     const bEnd = bStart + bDur;
     return startMins < bEnd && endMins > bStart;
   });
 }
+
 
 export function buildWhatsappUrl(booking: {
   name: string;
