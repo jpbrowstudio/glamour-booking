@@ -647,34 +647,79 @@ function ServiciosTab() {
 
 /* ---------------- CARRUSEL ---------------- */
 
+const IMAGENES_ACTUALES = [
+  { src: workA, titulo: "Ceja laminada y perfilada" },
+  { src: workB, titulo: "Pestañas con lifting y volumen" },
+  { src: workC, titulo: "Cabina del studio de cuidados" },
+  { src: workD, titulo: "Herramientas de cejas y pestañas" },
+  { src: heroImg, titulo: "Diseño de cejas a medida" },
+];
+
 function CarruselTab() {
   const [items, setItems] = useState<ImagenCarrusel[]>([]);
   const [titulo, setTitulo] = useState("");
   const [orden, setOrden] = useState(0);
-  const [file, setFile] = useState<File | null>(null);
+  const [files, setFiles] = useState<File[]>([]);
   const [error, setError] = useState("");
+  const [aviso, setAviso] = useState("");
   const [subiendo, setSubiendo] = useState(false);
+  const [cargando, setCargando] = useState(true);
+  const [guardando, setGuardando] = useState<number | null>(null);
 
-  const load = () => listCarrusel().then(setItems).catch((e) => setError(e.message));
+  const load = () => {
+    setCargando(true);
+    return listCarrusel()
+      .then(setItems)
+      .catch((e) => setError(e.message))
+      .finally(() => setCargando(false));
+  };
   useEffect(() => {
     load();
   }, []);
 
   const subir = async () => {
     setError("");
-    if (!file) {
-      setError("Selecciona una imagen.");
+    setAviso("");
+    if (files.length === 0) {
+      setError("Selecciona al menos una imagen.");
       return;
     }
     setSubiendo(true);
     try {
-      await uploadImagenCarrusel(file, titulo, orden);
+      let i = 0;
+      for (const f of files) {
+        await uploadImagenCarrusel(f, titulo || f.name.replace(/\.[^.]+$/, ""), orden + i);
+        i += 1;
+      }
       setTitulo("");
       setOrden(0);
-      setFile(null);
-      load();
+      setFiles([]);
+      setAviso(`${i} imagen(es) agregada(s).`);
+      await load();
     } catch (e) {
       setError(e instanceof Error ? e.message : "Error al subir");
+    } finally {
+      setSubiendo(false);
+    }
+  };
+
+  const importarActuales = async () => {
+    setError("");
+    setAviso("");
+    setSubiendo(true);
+    try {
+      let i = items.length;
+      for (const img of IMAGENES_ACTUALES) {
+        const res = await fetch(img.src);
+        const blob = await res.blob();
+        const file = new File([blob], `${img.titulo}.jpg`, { type: blob.type || "image/jpeg" });
+        await uploadImagenCarrusel(file, img.titulo, i);
+        i += 1;
+      }
+      setAviso("Imágenes actuales de la página cargadas al carrusel.");
+      await load();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Error al importar");
     } finally {
       setSubiendo(false);
     }
@@ -691,40 +736,92 @@ function CarruselTab() {
           <Field label="Orden">
             <input type="number" value={orden} onChange={(e) => setOrden(Number(e.target.value))} className={inputCls} />
           </Field>
-          <Field label="Imagen (máx. 5 MB)">
+          <Field label="Imágenes (máx. 5 MB c/u)">
             <input
               type="file"
               accept="image/*"
+              multiple
               onChange={(e) => {
-                const f = e.target.files?.[0] ?? null;
-                if (f && f.size > MAX_IMAGE_BYTES) {
-                  setError(`La imagen pesa ${(f.size / 1024 / 1024).toFixed(1)} MB. Máximo 5 MB.`);
-                  setFile(null);
+                const list = Array.from(e.target.files ?? []);
+                const grandes = list.filter((f) => f.size > MAX_IMAGE_BYTES);
+                if (grandes.length > 0) {
+                  setError(`Hay ${grandes.length} imagen(es) de más de 5 MB. Quítalas para continuar.`);
+                  setFiles([]);
                   return;
                 }
                 setError("");
-                setFile(f);
+                setFiles(list);
               }}
               className="w-full text-xs"
             />
           </Field>
+          {files.length > 0 && (
+            <div className="grid grid-cols-3 gap-2">
+              {files.map((f) => (
+                <img
+                  key={f.name + f.size}
+                  src={URL.createObjectURL(f)}
+                  alt={f.name}
+                  className="aspect-square w-full rounded-lg object-cover"
+                />
+              ))}
+            </div>
+          )}
           {error && <p className="text-xs text-destructive">{error}</p>}
-          <button
-            onClick={subir}
-            disabled={subiendo}
-            className="rounded-full bg-primary px-4 py-2 text-xs text-primary-foreground disabled:opacity-50"
-          >
-            {subiendo ? "Subiendo…" : "Insertar imagen"}
-          </button>
+          {aviso && <p className="text-xs text-accent">{aviso}</p>}
+          <div className="flex flex-wrap gap-2">
+            <button
+              onClick={subir}
+              disabled={subiendo}
+              className="rounded-full bg-primary px-4 py-2 text-xs text-primary-foreground disabled:opacity-50"
+            >
+              {subiendo ? "Subiendo…" : "Insertar imagen"}
+            </button>
+            <button
+              onClick={importarActuales}
+              disabled={subiendo}
+              className="rounded-full border border-border px-4 py-2 text-xs disabled:opacity-50"
+            >
+              Cargar imágenes actuales
+            </button>
+          </div>
+          <p className="text-[11px] text-muted-foreground">
+            «Cargar imágenes actuales» sube al carrusel las fotos que hoy se ven en la página para que puedas
+            editarlas o eliminarlas.
+          </p>
         </div>
       </div>
 
       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
-        <h2 className="mb-3 font-serif text-lg">Carrusel del portafolio ({items.length})</h2>
+        <div className="mb-3 flex items-center justify-between">
+          <h2 className="font-serif text-lg">Carrusel del portafolio ({items.length})</h2>
+          <button onClick={load} className="rounded-full border border-border px-3 py-1 text-xs">
+            Recargar
+          </button>
+        </div>
+        {cargando && <p className="text-xs text-muted-foreground">Cargando imágenes…</p>}
+        {!cargando && items.length === 0 && (
+          <p className="text-xs text-muted-foreground">
+            Aún no hay imágenes en el carrusel. Sube nuevas o usa «Cargar imágenes actuales».
+          </p>
+        )}
         <div className="grid gap-3 sm:grid-cols-2">
           {items.map((img) => (
             <div key={img.id_imagen} className="rounded-xl border border-border/60 p-3">
-              <img src={img.imagen_url} alt={img.titulo} className="mb-2 aspect-video w-full rounded-lg object-cover" />
+              <img
+                src={img.imagen_url}
+                alt={img.titulo}
+                className="mb-2 aspect-video w-full rounded-lg bg-muted object-cover"
+                onError={() => {
+                  refreshImagenUrl(img)
+                    .then((url) =>
+                      setItems((cur) =>
+                        cur.map((i) => (i.id_imagen === img.id_imagen ? { ...i, imagen_url: url } : i)),
+                      ),
+                    )
+                    .catch(() => undefined);
+                }}
+              />
               <input
                 value={img.titulo}
                 onChange={(e) =>
