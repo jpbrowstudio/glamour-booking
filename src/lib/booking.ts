@@ -1,7 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { BUSINESS, SLOT_MINUTES, WEEKLY_HOURS, SERVICES } from "./config";
 
-export type BookingStatus = "pending" | "confirmed" | "cancelled";
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "reprogramada"
+  | "realizada";
 
 export interface Booking {
   id: string;
@@ -12,7 +17,10 @@ export interface Booking {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   notes?: string;
+  email: string;
+  areaCode: string;
   status: BookingStatus;
+  reminderAt?: string | null;
   createdAt?: string;
 }
 
@@ -42,6 +50,9 @@ type BookingRow = {
   notes: string | null;
   status: string;
   created_at: string;
+  email: string | null;
+  area_code: string | null;
+  reminder_at: string | null;
 };
 
 function mapBooking(r: BookingRow): Booking {
@@ -54,6 +65,9 @@ function mapBooking(r: BookingRow): Booking {
     date: r.date,
     time: r.time,
     notes: r.notes ?? undefined,
+    email: r.email ?? "",
+    areaCode: r.area_code ?? "+52",
+    reminderAt: r.reminder_at,
     status: r.status as BookingStatus,
     createdAt: r.created_at,
   };
@@ -145,6 +159,8 @@ export async function createBooking(
       date: b.date,
       time: b.time,
       notes: b.notes ?? null,
+      email: b.email,
+      area_code: b.areaCode,
       status: "pending",
     });
   if (error) throw new Error(error.message);
@@ -153,6 +169,19 @@ export async function createBooking(
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
   const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function setBookingReminder(id: string, reminderAt: string | null) {
+  const { error } = await supabase.from("bookings").update({ reminder_at: reminderAt }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function rescheduleBooking(id: string, date: string, time: string) {
+  const { error } = await supabase
+    .from("bookings")
+    .update({ date, time, status: "reprogramada" })
+    .eq("id", id);
   if (error) throw new Error(error.message);
 }
 
@@ -191,24 +220,35 @@ export function generateSlots(date: string): string[] {
   return slots;
 }
 
+/** Slots a partir de la tabla horas_disponibles (si hay filas para ese día). */
+export function slotsFromHoras(
+  horas: Array<{ hora: string; dia_semana: number | null; activo: boolean }>,
+  date: string,
+): string[] {
+  const dow = new Date(date + "T00:00:00").getDay();
+  const list = horas
+    .filter((h) => h.activo && (h.dia_semana === null || h.dia_semana === dow))
+    .map((h) => h.hora);
+  return Array.from(new Set(list)).sort();
+}
+
 export function isSlotTaken(
   time: string,
-  serviceId: string,
+  durationMin: number,
   busy: Array<{ date: string; time: string; serviceId: string; status: BookingStatus }>,
   blocks: Block[],
   date: string,
+  durationById: Record<string, number> = {},
 ): boolean {
   if (blocks.some((b) => b.date === date && !b.time)) return true;
   if (blocks.some((b) => b.date === date && b.time === time)) return true;
-  const service = SERVICES.find((s) => s.id === serviceId);
-  const duration = service?.duration ?? 60;
   const [h, m] = time.split(":").map(Number);
   const startMins = h * 60 + m;
-  const endMins = startMins + duration;
+  const endMins = startMins + durationMin;
   return busy.some((b) => {
     if (b.date !== date || b.status === "cancelled") return false;
-    const svc = SERVICES.find((s) => s.id === b.serviceId);
-    const bDur = svc?.duration ?? 60;
+    const bDur =
+      durationById[b.serviceId] ?? SERVICES.find((s) => s.id === b.serviceId)?.duration ?? 60;
     const [bh, bm] = b.time.split(":").map(Number);
     const bStart = bh * 60 + bm;
     const bEnd = bStart + bDur;
@@ -216,21 +256,45 @@ export function isSlotTaken(
   });
 }
 
-export function buildWhatsappUrl(booking: {
-  name: string;
-  phone: string;
-  serviceName: string;
-  date: string;
-  time: string;
-  notes?: string;
-}) {
+
+export function buildWhatsappUrl(
+  booking: {
+    name: string;
+    phone: string;
+    serviceName: string;
+    date: string;
+    time: string;
+    notes?: string;
+    email?: string;
+    areaCode?: string;
+  },
+  targetPhone?: string,
+) {
   const msg =
     `Hola! Quiero confirmar mi reserva en ${BUSINESS.name}:\n\n` +
     `👤 ${booking.name}\n` +
-    `📞 ${booking.phone}\n` +
+    `📞 ${booking.areaCode ?? ""} ${booking.phone}\n` +
+    (booking.email ? `✉️ ${booking.email}\n` : "") +
     `💇 Servicio: ${booking.serviceName}\n` +
     `📅 ${booking.date} a las ${booking.time}\n` +
     (booking.notes ? `📝 Notas: ${booking.notes}\n` : "") +
     `\n¡Gracias!`;
-  return `https://wa.me/${BUSINESS.whatsapp}?text=${encodeURIComponent(msg)}`;
+  const to = (targetPhone ?? BUSINESS.whatsapp).replace(/[^0-9]/g, "");
+  return `https://wa.me/${to}?text=${encodeURIComponent(msg)}`;
 }
+
+/** Mensaje que la dueña envía al cliente al aceptar / cancelar / reprogramar. */
+export function buildClientWhatsappUrl(
+  booking: { name: string; phone: string; areaCode: string; serviceName: string; date: string; time: string },
+  estado: "aceptada" | "cancelada" | "reprogramada" | "recordatorio",
+) {
+  const textos: Record<typeof estado, string> = {
+    aceptada: `¡Hola ${booking.name}! Tu cita de ${booking.serviceName} quedó CONFIRMADA para el ${booking.date} a las ${booking.time}. ¡Te esperamos en ${BUSINESS.name}!`,
+    cancelada: `Hola ${booking.name}, lamentamos informarte que tu cita de ${booking.serviceName} del ${booking.date} a las ${booking.time} fue cancelada. Escríbenos para reagendar.`,
+    reprogramada: `Hola ${booking.name}, tu cita de ${booking.serviceName} se reprogramó para el ${booking.date} a las ${booking.time}. ¿Te queda bien?`,
+    recordatorio: `Hola ${booking.name}! Te recordamos tu cita de ${booking.serviceName} el ${booking.date} a las ${booking.time}. ¡Te esperamos!`,
+  };
+  const to = `${booking.areaCode}${booking.phone}`.replace(/[^0-9]/g, "");
+  return `https://wa.me/${to}?text=${encodeURIComponent(textos[estado])}`;
+}
+
