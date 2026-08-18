@@ -2,17 +2,27 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useEffect, useMemo, useState } from "react";
 import { z } from "zod";
 import { ArrowLeft, Calendar as CalIcon, Check, MessageCircle } from "lucide-react";
-import { BUSINESS, SERVICES } from "../lib/config";
+import { BUSINESS } from "../lib/config";
 import {
   type BusySlot,
   type Block,
   buildWhatsappUrl,
   createBooking,
   generateSlots,
+  slotsFromHoras,
   isSlotTaken,
   subscribeAvailability,
   subscribeBlocks,
 } from "../lib/booking";
+import {
+  AREA_CODES,
+  type HoraDisponible,
+  type Servicio,
+  type UsuarioAdmin,
+  getUsuarioActivo,
+  listHoras,
+  listServicios,
+} from "../lib/catalogo";
 
 const searchSchema = z.object({
   service: z.string().optional(),
@@ -34,8 +44,7 @@ export const Route = createFileRoute("/reservar")({
 });
 
 function todayISO() {
-  const d = new Date();
-  return d.toISOString().slice(0, 10);
+  return new Date().toISOString().slice(0, 10);
 }
 
 function addDaysISO(base: string, days: number) {
@@ -51,17 +60,24 @@ function formatDateLabel(iso: string) {
 
 const bookingFormSchema = z.object({
   name: z.string().trim().min(2, "Mínimo 2 caracteres").max(80),
-  phone: z.string().trim().min(6, "Teléfono inválido").max(30),
+  phone: z.string().trim().min(6, "Teléfono inválido").max(20),
+  areaCode: z.string().trim().min(2, "Selecciona el código de área"),
+  email: z.string().trim().email("Correo electrónico inválido").max(255),
   notes: z.string().trim().max(300).optional(),
 });
 
 function BookingPage() {
   const { service: serviceFromUrl } = Route.useSearch();
-  const [serviceId, setServiceId] = useState(serviceFromUrl || SERVICES[0].id);
+  const [servicios, setServicios] = useState<Servicio[]>([]);
+  const [horas, setHoras] = useState<HoraDisponible[]>([]);
+  const [owner, setOwner] = useState<UsuarioAdmin | null>(null);
+  const [serviceId, setServiceId] = useState(serviceFromUrl ?? "");
   const [date, setDate] = useState<string>(todayISO());
   const [time, setTime] = useState<string>("");
   const [name, setName] = useState("");
+  const [areaCode, setAreaCode] = useState("+52");
   const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
   const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -69,19 +85,38 @@ function BookingPage() {
     waUrl: string;
     directUrl: string;
     bookingId: string;
+    email: string;
   } | null>(null);
 
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
 
-  // Sincronización en tiempo real
+  useEffect(() => {
+    listServicios(true)
+      .then((s) => {
+        setServicios(s);
+        setServiceId((cur) => cur || String(s[0]?.id_servicio ?? ""));
+      })
+      .catch(() => undefined);
+    listHoras(true).then(setHoras).catch(() => undefined);
+    getUsuarioActivo().then(setOwner).catch(() => undefined);
+  }, []);
+
   useEffect(() => subscribeAvailability(date, date, setBusy), [date]);
   useEffect(() => subscribeBlocks(setBlocks), []);
 
-  const service = SERVICES.find((s) => s.id === serviceId) ?? SERVICES[0];
-  const slots = useMemo(() => generateSlots(date), [date]);
+  const service = servicios.find((s) => String(s.id_servicio) === serviceId) ?? servicios[0];
 
-  // días para el selector rápido (próximos 14)
+  const durationById = useMemo(
+    () => Object.fromEntries(servicios.map((s) => [String(s.id_servicio), s.duracion_min])),
+    [servicios],
+  );
+
+  const slots = useMemo(() => {
+    const fromDb = slotsFromHoras(horas, date);
+    return fromDb.length > 0 ? fromDb : generateSlots(date);
+  }, [horas, date]);
+
   const days = useMemo(() => {
     const base = todayISO();
     return Array.from({ length: 14 }, (_, i) => addDaysISO(base, i));
@@ -89,11 +124,15 @@ function BookingPage() {
 
   const submit = async () => {
     setErrors({});
+    if (!service) {
+      setErrors({ form: "No hay servicios disponibles." });
+      return;
+    }
     if (!time) {
       setErrors({ time: "Selecciona una hora" });
       return;
     }
-    const parsed = bookingFormSchema.safeParse({ name, phone, notes });
+    const parsed = bookingFormSchema.safeParse({ name, phone, areaCode, email, notes });
     if (!parsed.success) {
       const e: Record<string, string> = {};
       parsed.error.issues.forEach((i) => (e[i.path.join(".")] = i.message));
@@ -101,30 +140,41 @@ function BookingPage() {
       return;
     }
     setSubmitting(true);
-    const waUrl = buildWhatsappUrl({
-      name: parsed.data.name,
-      phone: parsed.data.phone,
-      serviceName: service.name,
-      date,
-      time,
-      notes: parsed.data.notes,
-    });
-    const directUrl = `${window.location.origin}/reservar?service=${service.id}`;
+    const waUrl = buildWhatsappUrl(
+      {
+        name: parsed.data.name,
+        phone: parsed.data.phone,
+        areaCode: parsed.data.areaCode,
+        email: parsed.data.email,
+        serviceName: service.nombre_s,
+        date,
+        time,
+        notes: parsed.data.notes,
+      },
+      owner?.telefono,
+    );
+    const directUrl = `${window.location.origin}/reservar?service=${service.id_servicio}`;
     try {
       const ref = await createBooking({
         name: parsed.data.name,
         phone: parsed.data.phone,
+        areaCode: parsed.data.areaCode,
+        email: parsed.data.email,
         notes: parsed.data.notes,
-        serviceId: service.id,
-        serviceName: service.name,
+        serviceId: String(service.id_servicio),
+        serviceName: service.nombre_s,
         date,
         time,
       });
-      setConfirmed({ waUrl, directUrl, bookingId: ref.id });
+      setConfirmed({ waUrl, directUrl, bookingId: ref.id, email: parsed.data.email });
     } catch (err) {
-      // Aunque falle el guardado, dejamos confirmar por WhatsApp.
-      setErrors({ form: err instanceof Error ? err.message : "Error al reservar" });
-      setConfirmed({ waUrl, directUrl, bookingId: "" });
+      const msg = err instanceof Error ? err.message : "Error al reservar";
+      setErrors({
+        form: msg.includes("duplicate")
+          ? "Ese horario acaba de ser reservado. Elige otra hora."
+          : msg,
+      });
+      setConfirmed({ waUrl, directUrl, bookingId: "", email: parsed.data.email });
     } finally {
       setSubmitting(false);
     }
@@ -139,12 +189,12 @@ function BookingPage() {
               <Check className="h-7 w-7 text-primary" />
             </div>
             <h1 className="font-serif text-2xl">
-              {confirmed.bookingId ? "¡Reserva enviada!" : "Confirma por WhatsApp"}
+              {confirmed.bookingId ? "¡Solicitud enviada!" : "Confirma por WhatsApp"}
             </h1>
             <p className="mt-2 text-sm text-muted-foreground">
               {confirmed.bookingId
-                ? `Tu cita quedó registrada. Confírmala con ${BUSINESS.name} por WhatsApp para asegurar el horario.`
-                : `No pudimos guardar la cita en la agenda, pero puedes enviarla directo por WhatsApp a ${BUSINESS.name}.`}
+                ? `Tu solicitud quedó registrada a nombre de ${confirmed.email}. ${BUSINESS.name} la revisará y te confirmará la cita.`
+                : `No pudimos guardar la cita, pero puedes enviarla directo por WhatsApp a ${BUSINESS.name}.`}
             </p>
             {!confirmed.bookingId && errors.form && (
               <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{errors.form}</p>
@@ -155,7 +205,7 @@ function BookingPage() {
               rel="noreferrer"
               className="mt-6 inline-flex items-center gap-2 rounded-full bg-[#25D366] px-6 py-3 text-white shadow-md hover:opacity-90"
             >
-              <MessageCircle className="h-4 w-4" /> Confirmar por WhatsApp
+              <MessageCircle className="h-4 w-4" /> Avisar por WhatsApp
             </a>
             <div className="mt-6 rounded-xl bg-muted p-3 text-xs text-muted-foreground">
               <p className="mb-1 font-medium text-foreground">Enlace de reserva directa:</p>
@@ -204,21 +254,23 @@ function BookingPage() {
             1. Servicio
           </h2>
           <div className="grid gap-2 sm:grid-cols-2">
-            {SERVICES.map((s) => (
+            {servicios.map((s) => (
               <button
-                key={s.id}
-                onClick={() => setServiceId(s.id)}
+                key={s.id_servicio}
+                onClick={() => setServiceId(String(s.id_servicio))}
                 className={`flex items-center justify-between rounded-xl border p-3 text-left transition ${
-                  serviceId === s.id
+                  String(s.id_servicio) === serviceId
                     ? "border-primary bg-primary/5"
                     : "border-border hover:bg-muted"
                 }`}
               >
                 <span>
-                  <span className="block font-medium">{s.name}</span>
-                  <span className="block text-xs text-muted-foreground">{s.duration} min · {s.price}</span>
+                  <span className="block font-medium">{s.nombre_s}</span>
+                  <span className="block text-xs text-muted-foreground">
+                    {s.duracion_min} min · ${s.precio_s}
+                  </span>
                 </span>
-                {serviceId === s.id && <Check className="h-4 w-4 text-primary" />}
+                {String(s.id_servicio) === serviceId && <Check className="h-4 w-4 text-primary" />}
               </button>
             ))}
           </div>
@@ -246,9 +298,7 @@ function BookingPage() {
                 <span className="text-[10px] uppercase opacity-80">
                   {new Date(d + "T00:00:00").toLocaleDateString("es-MX", { weekday: "short" })}
                 </span>
-                <span className="text-lg font-semibold">
-                  {new Date(d + "T00:00:00").getDate()}
-                </span>
+                <span className="text-lg font-semibold">{new Date(d + "T00:00:00").getDate()}</span>
                 <span className="text-[10px] opacity-80">
                   {new Date(d + "T00:00:00").toLocaleDateString("es-MX", { month: "short" })}
                 </span>
@@ -280,7 +330,14 @@ function BookingPage() {
           ) : (
             <div className="grid grid-cols-3 gap-2 sm:grid-cols-4 md:grid-cols-6">
               {slots.map((t) => {
-                const taken = isSlotTaken(t, serviceId, busy, blocks, date);
+                const taken = isSlotTaken(
+                  t,
+                  service?.duracion_min ?? 60,
+                  busy,
+                  blocks,
+                  date,
+                  durationById,
+                );
                 const selected = time === t;
                 return (
                   <button
@@ -311,26 +368,56 @@ function BookingPage() {
           </h2>
           <div className="grid gap-3 sm:grid-cols-2">
             <div>
-              <label className="text-xs text-muted-foreground">Nombre completo</label>
+              <label className="text-xs text-muted-foreground">Nombre completo *</label>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 maxLength={80}
+                required
                 className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
                 placeholder="María López"
               />
               {errors.name && <p className="mt-1 text-xs text-destructive">{errors.name}</p>}
             </div>
             <div>
-              <label className="text-xs text-muted-foreground">Teléfono / WhatsApp</label>
+              <label className="text-xs text-muted-foreground">Teléfono / WhatsApp *</label>
+              <div className="mt-1 flex gap-2">
+                <select
+                  value={areaCode}
+                  onChange={(e) => setAreaCode(e.target.value)}
+                  className="w-32 rounded-lg border border-border bg-background px-2 py-2 text-sm"
+                >
+                  {AREA_CODES.map((a) => (
+                    <option key={a.code} value={a.code}>
+                      {a.label}
+                    </option>
+                  ))}
+                </select>
+                <input
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value.replace(/[^0-9\s]/g, ""))}
+                  maxLength={20}
+                  required
+                  className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
+                  placeholder="555 000 0000"
+                />
+              </div>
+              {(errors.phone || errors.areaCode) && (
+                <p className="mt-1 text-xs text-destructive">{errors.phone || errors.areaCode}</p>
+              )}
+            </div>
+            <div className="sm:col-span-2">
+              <label className="text-xs text-muted-foreground">Correo electrónico *</label>
               <input
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                maxLength={30}
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                maxLength={255}
+                required
                 className="mt-1 w-full rounded-lg border border-border bg-background px-3 py-2 text-sm"
-                placeholder="+52 555 000 0000"
+                placeholder="maria@correo.com"
               />
-              {errors.phone && <p className="mt-1 text-xs text-destructive">{errors.phone}</p>}
+              {errors.email && <p className="mt-1 text-xs text-destructive">{errors.email}</p>}
             </div>
             <div className="sm:col-span-2">
               <label className="text-xs text-muted-foreground">Notas (opcional)</label>
@@ -357,7 +444,7 @@ function BookingPage() {
             disabled={submitting}
             className="mt-4 w-full rounded-full bg-primary py-3 font-medium text-primary-foreground shadow-md hover:opacity-90 disabled:opacity-50"
           >
-            {submitting ? "Enviando…" : "Confirmar reserva"}
+            {submitting ? "Enviando…" : "Solicitar reserva"}
           </button>
         </section>
       </div>
