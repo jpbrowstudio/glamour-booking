@@ -168,7 +168,7 @@ function BookingPage() {
         time,
       });
       setConfirmed({ waUrl, directUrl, bookingId: ref.id, email: parsed.data.email });
-      notifyBookingCreated({ data: { bookingId: ref.id } }).catch((e) =>
+      notifyBookingCreated({ data: { bookingId: ref.id } }).catch((e: unknown) =>
         console.error("No se pudo enviar el correo de confirmación", e),
       );
     } catch (err) {
