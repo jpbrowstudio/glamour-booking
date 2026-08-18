@@ -461,7 +461,7 @@ function ReservasTab() {
                 </a>
                 {b.status !== "confirmed" && (
                   <button
-                    onClick={() => updateBookingStatus(b.id, "confirmed")}
+                    onClick={() => cambiarEstado(b, "confirmed")}
                     className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted"
                   >
                     <Check className="h-3 w-3" /> Aceptar
@@ -475,7 +475,7 @@ function ReservasTab() {
                 </button>
                 {b.status !== "realizada" && (
                   <button
-                    onClick={() => updateBookingStatus(b.id, "realizada")}
+                    onClick={() => cambiarEstado(b, "realizada")}
                     className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted"
                   >
                     <ListChecks className="h-3 w-3" /> Realizada
@@ -489,7 +489,7 @@ function ReservasTab() {
                 </button>
                 {b.status !== "cancelled" && (
                   <button
-                    onClick={() => updateBookingStatus(b.id, "cancelled")}
+                    onClick={() => cambiarEstado(b, "cancelled")}
                     className="inline-flex items-center gap-1 rounded-full border border-border px-3 py-1 text-xs hover:bg-muted"
                   >
                     <X className="h-3 w-3" /> Cancelar
