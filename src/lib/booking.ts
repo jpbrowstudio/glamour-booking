@@ -1,7 +1,12 @@
 import { supabase } from "@/integrations/supabase/client";
 import { BUSINESS, SLOT_MINUTES, WEEKLY_HOURS, SERVICES } from "./config";
 
-export type BookingStatus = "pending" | "confirmed" | "cancelled";
+export type BookingStatus =
+  | "pending"
+  | "confirmed"
+  | "cancelled"
+  | "reprogramada"
+  | "realizada";
 
 export interface Booking {
   id: string;
@@ -12,7 +17,10 @@ export interface Booking {
   date: string; // YYYY-MM-DD
   time: string; // HH:mm
   notes?: string;
+  email: string;
+  areaCode: string;
   status: BookingStatus;
+  reminderAt?: string | null;
   createdAt?: string;
 }
 
@@ -42,6 +50,9 @@ type BookingRow = {
   notes: string | null;
   status: string;
   created_at: string;
+  email: string | null;
+  area_code: string | null;
+  reminder_at: string | null;
 };
 
 function mapBooking(r: BookingRow): Booking {
@@ -54,6 +65,9 @@ function mapBooking(r: BookingRow): Booking {
     date: r.date,
     time: r.time,
     notes: r.notes ?? undefined,
+    email: r.email ?? "",
+    areaCode: r.area_code ?? "+52",
+    reminderAt: r.reminder_at,
     status: r.status as BookingStatus,
     createdAt: r.created_at,
   };
@@ -145,6 +159,8 @@ export async function createBooking(
       date: b.date,
       time: b.time,
       notes: b.notes ?? null,
+      email: b.email,
+      area_code: b.areaCode,
       status: "pending",
     });
   if (error) throw new Error(error.message);
@@ -153,6 +169,19 @@ export async function createBooking(
 
 export async function updateBookingStatus(id: string, status: BookingStatus) {
   const { error } = await supabase.from("bookings").update({ status }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function setBookingReminder(id: string, reminderAt: string | null) {
+  const { error } = await supabase.from("bookings").update({ reminder_at: reminderAt }).eq("id", id);
+  if (error) throw new Error(error.message);
+}
+
+export async function rescheduleBooking(id: string, date: string, time: string) {
+  const { error } = await supabase
+    .from("bookings")
+    .update({ date, time, status: "reprogramada" })
+    .eq("id", id);
   if (error) throw new Error(error.message);
 }
 
