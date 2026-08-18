@@ -14,6 +14,7 @@ import {
   subscribeAvailability,
   subscribeBlocks,
 } from "../lib/booking";
+import { notifyBookingCreated } from "../lib/email.functions";
 import {
   AREA_CODES,
   type HoraDisponible,
