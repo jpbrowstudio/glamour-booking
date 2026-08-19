@@ -30,22 +30,35 @@ export async function sendGmail(opts: { to: string; subject: string; html: strin
     opts.html,
   ].join('\r\n');
 
-  const res = await fetch(`${GATEWAY_URL}/users/me/messages/send`, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${lovableKey}`,
-      'X-Connection-Api-Key': connKey,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({ raw: toBase64Url(raw) }),
-  });
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    const res = await fetch(`${GATEWAY_URL}/users/me/messages/send`, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${lovableKey}`,
+        'X-Connection-Api-Key': connKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ raw: toBase64Url(raw) }),
+      signal: AbortSignal.timeout(15_000),
+    });
 
-  if (!res.ok) {
+    if (res.ok) return { sent: true as const };
+
     const body = await res.text();
-    console.error(`[gmail] envío falló [${res.status}]: ${body}`);
-    throw new Error(`Gmail error [${res.status}]: ${body}`);
+    const canRetry = res.status === 429 || res.status >= 500;
+    console.error(`[gmail] intento ${attempt} falló [${res.status}]: ${body}`);
+    if (!canRetry || attempt === 3) {
+      throw new Error(`Gmail rechazó el envío [${res.status}]`);
+    }
+
+    const retryAfter = Number(res.headers.get('retry-after'));
+    const waitMs = Number.isFinite(retryAfter) && retryAfter > 0
+      ? Math.min(retryAfter * 1_000, 10_000)
+      : attempt * 1_000;
+    await new Promise((resolve) => setTimeout(resolve, waitMs));
   }
-  return { sent: true as const };
+
+  throw new Error('Gmail no pudo completar el envío');
 }
 
 const STUDIO = 'JP Brows Studio';
