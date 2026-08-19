@@ -88,6 +88,8 @@ function BookingPage() {
     bookingId: string;
     email: string;
   } | null>(null);
+  const [mailState, setMailState] = useState<"idle" | "sending" | "ok" | "fail">("idle");
+
 
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
@@ -168,9 +170,14 @@ function BookingPage() {
         time,
       });
       setConfirmed({ waUrl, directUrl, bookingId: ref.id, email: parsed.data.email });
-      notifyBookingCreated({ data: { bookingId: ref.id } }).catch((e: unknown) =>
-        console.error("No se pudo enviar el correo de confirmación", e),
-      );
+      setMailState("sending");
+      notifyBookingCreated({ data: { bookingId: ref.id } })
+        .then((r: { sent?: boolean }) => setMailState(r?.sent ? "ok" : "fail"))
+        .catch((e: unknown) => {
+          console.error("No se pudo enviar el correo de confirmación", e);
+          setMailState("fail");
+        });
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error al reservar";
       setErrors({
@@ -200,6 +207,15 @@ function BookingPage() {
                 ? `Tu solicitud quedó registrada a nombre de ${confirmed.email}. ${BUSINESS.name} la revisará y te confirmará la cita.`
                 : `No pudimos guardar la cita, pero puedes enviarla directo por WhatsApp a ${BUSINESS.name}.`}
             </p>
+            {confirmed.bookingId && mailState !== "idle" && (
+              <p className="mt-2 text-xs text-muted-foreground">
+                {mailState === "sending" && "Enviando confirmación por correo…"}
+                {mailState === "ok" && `Te enviamos un correo de confirmación a ${confirmed.email} (revisa spam).`}
+                {mailState === "fail" &&
+                  "No pudimos enviarte el correo automático, pero tu solicitud sí quedó registrada."}
+              </p>
+            )}
+
             {!confirmed.bookingId && errors.form && (
               <p className="mt-2 rounded-xl bg-amber-50 p-3 text-xs text-amber-900">{errors.form}</p>
             )}

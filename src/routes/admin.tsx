@@ -38,6 +38,7 @@ import {
   subscribeBlocks,
   updateBookingStatus,
 } from "../lib/booking";
+import { toast } from "sonner";
 import { notifyBookingStatus } from "../lib/email.functions";
 import {
   type HoraDisponible,
@@ -362,11 +363,23 @@ function ReservasTab() {
     b: Booking,
     kind: "confirmada" | "cancelada" | "reprogramada" | "recordatorio",
   ) => {
-    if (!b.email) return;
-    notifyBookingStatus({ data: { bookingId: b.id, kind } }).catch((e: unknown) =>
-      console.error("No se pudo enviar el correo", e),
+    if (!b.email) {
+      toast.info("La reserva no tiene correo; no se envió aviso.");
+      return;
+    }
+    const p = notifyBookingStatus({ data: { bookingId: b.id, kind } }).then(
+      (r: { sent?: boolean }) => {
+        if (!r?.sent) throw new Error("No se pudo enviar");
+        return r;
+      },
     );
+    toast.promise(p, {
+      loading: `Enviando correo (${kind})…`,
+      success: `Correo ${kind} enviado a ${b.email}`,
+      error: "No se pudo enviar el correo",
+    });
   };
+
 
   const cambiarEstado = async (
     b: Booking,
