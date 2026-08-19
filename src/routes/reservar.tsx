@@ -168,9 +168,14 @@ function BookingPage() {
         time,
       });
       setConfirmed({ waUrl, directUrl, bookingId: ref.id, email: parsed.data.email });
-      notifyBookingCreated({ data: { bookingId: ref.id } }).catch((e: unknown) =>
-        console.error("No se pudo enviar el correo de confirmación", e),
-      );
+      setMailState("sending");
+      notifyBookingCreated({ data: { bookingId: ref.id } })
+        .then((r: { sent?: boolean }) => setMailState(r?.sent ? "ok" : "fail"))
+        .catch((e: unknown) => {
+          console.error("No se pudo enviar el correo de confirmación", e);
+          setMailState("fail");
+        });
+
     } catch (err) {
       const msg = err instanceof Error ? err.message : "Error al reservar";
       setErrors({
