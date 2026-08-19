@@ -30,6 +30,7 @@ export const notifyBookingCreated = createServerFn({ method: 'POST' })
     };
 
     const results: string[] = [];
+    const failed: string[] = [];
     if (booking.email) {
       const mail = clientEmail('solicitud', booking);
       try {
@@ -37,6 +38,7 @@ export const notifyBookingCreated = createServerFn({ method: 'POST' })
         results.push('cliente');
       } catch (e) {
         console.error('[email] cliente', e);
+        failed.push('cliente');
       }
     }
 
@@ -51,9 +53,15 @@ export const notifyBookingCreated = createServerFn({ method: 'POST' })
       results.push('admin');
     } catch (e) {
       console.error('[email] admin', e);
+      failed.push('admin');
     }
 
-    return { sent: results.length > 0, results };
+    return {
+      sent: results.includes('cliente'),
+      adminNotified: results.includes('admin'),
+      results,
+      failed,
+    };
   });
 
 /** Correo al cliente cuando la dueña acepta, cancela, reprograma o recuerda una cita. */
