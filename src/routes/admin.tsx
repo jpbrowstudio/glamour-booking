@@ -38,6 +38,7 @@ import {
   subscribeBlocks,
   updateBookingStatus,
 } from "../lib/booking";
+import { toast } from "sonner";
 import { notifyBookingStatus } from "../lib/email.functions";
 import {
   type HoraDisponible,
