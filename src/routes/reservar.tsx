@@ -88,6 +88,8 @@ function BookingPage() {
     bookingId: string;
     email: string;
   } | null>(null);
+  const [mailState, setMailState] = useState<"idle" | "sending" | "ok" | "fail">("idle");
+
 
   const [busy, setBusy] = useState<BusySlot[]>([]);
   const [blocks, setBlocks] = useState<Block[]>([]);
