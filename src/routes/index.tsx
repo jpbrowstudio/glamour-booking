@@ -53,10 +53,24 @@ function Landing() {
     getUsuarioActivo().then(setOwner).catch(() => undefined);
   }, []);
 
+  const refirmar = async (id: number) => {
+    const img = galeria.find((g) => g.id_imagen === id);
+    if (!img) return;
+    const url = await signImagenUrl(img).catch(() => null);
+    if (!url || url === img.imagen_url) return;
+    setGaleria((prev) =>
+      prev.map((g) => (g.id_imagen === id ? { ...g, imagen_url: url } : g)),
+    );
+  };
+
   const images =
     galeria.length > 0
-      ? galeria.map((g) => ({ src: g.imagen_url, alt: g.titulo || "Trabajo del studio" }))
-      : IMAGES;
+      ? galeria.map((g) => ({
+          src: g.imagen_url,
+          alt: g.titulo || "Trabajo del studio",
+          id: g.id_imagen,
+        }))
+      : IMAGES.map((i, idx) => ({ ...i, id: -1 - idx }));
 
   useEffect(() => {
     setSlide(0);
