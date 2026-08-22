@@ -15,6 +15,7 @@ import {
   type UsuarioAdmin,
   getUsuarioActivo,
   listCarrusel,
+  signImagenUrl,
   listServicios,
 } from "../lib/catalogo";
 import { InstagramCarousel } from "../components/instagram-carousel";
@@ -182,6 +183,7 @@ function Landing() {
                   slide === i ? "opacity-100" : "opacity-0"
                 }`}
                 loading={i === 0 ? "eager" : "lazy"}
+                onError={() => { if (img.id > 0) void refirmar(img.id); }}
               />
             ))}
           </div>
@@ -196,7 +198,13 @@ function Landing() {
                   slide === i ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "opacity-70 hover:opacity-100"
                 }`}
               >
-                <img src={img.src} alt={img.alt} className="h-full w-full object-cover" loading="lazy" />
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={() => { if (img.id > 0) void refirmar(img.id); }}
+                />
               </button>
             ))}
           </div>
