@@ -674,6 +674,54 @@ const IMAGENES_ACTUALES = [
   { src: heroImg, titulo: "Diseño de cejas a medida" },
 ];
 
+type ConfirmState = {
+  titulo: string;
+  detalle: string;
+  textoBoton: string;
+  destructivo?: boolean;
+  accion: () => Promise<void>;
+};
+
+function ConfirmDialog({ state, onClose }: { state: ConfirmState; onClose: () => void }) {
+  const [ejecutando, setEjecutando] = useState(false);
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/40 p-4">
+      <div className="w-full max-w-sm rounded-2xl border border-border/60 bg-card p-5 shadow-lg">
+        <h3 className="font-serif text-lg">{state.titulo}</h3>
+        <p className="mt-2 text-xs text-muted-foreground">{state.detalle}</p>
+        <div className="mt-4 flex justify-end gap-2">
+          <button
+            onClick={onClose}
+            disabled={ejecutando}
+            className="rounded-full border border-border px-4 py-2 text-xs disabled:opacity-50"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={async () => {
+              setEjecutando(true);
+              try {
+                await state.accion();
+                onClose();
+              } finally {
+                setEjecutando(false);
+              }
+            }}
+            disabled={ejecutando}
+            className={`rounded-full px-4 py-2 text-xs disabled:opacity-50 ${
+              state.destructivo
+                ? "bg-destructive text-destructive-foreground"
+                : "bg-primary text-primary-foreground"
+            }`}
+          >
+            {ejecutando ? "Aplicando…" : state.textoBoton}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function CarruselTab() {
   const [items, setItems] = useState<ImagenCarrusel[]>([]);
   const [titulo, setTitulo] = useState("");
@@ -683,13 +731,19 @@ function CarruselTab() {
   const [aviso, setAviso] = useState("");
   const [subiendo, setSubiendo] = useState(false);
   const [cargando, setCargando] = useState(true);
-  const [guardando, setGuardando] = useState<number | null>(null);
+  const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
 
   const load = () => {
     setCargando(true);
     return listCarrusel()
-      .then(setItems)
-      .catch((e) => setError(e.message))
+      .then((data) => {
+        setItems(data);
+        return data;
+      })
+      .catch((e) => {
+        setError(e.message);
+        return [] as ImagenCarrusel[];
+      })
       .finally(() => setCargando(false));
   };
   useEffect(() => {
@@ -699,26 +753,75 @@ function CarruselTab() {
   const subir = async () => {
     setError("");
     setAviso("");
-    if (files.length === 0) {
-      setError("Selecciona al menos una imagen.");
-      return;
-    }
     setSubiendo(true);
     try {
+      const antes = items.length;
       let i = 0;
       for (const f of files) {
         await uploadImagenCarrusel(f, titulo || f.name.replace(/\.[^.]+$/, ""), orden + i);
         i += 1;
       }
+      const despues = await load();
+      if (despues.length < antes + i) {
+        throw new Error("Las imágenes no quedaron guardadas en la base de datos.");
+      }
       setTitulo("");
       setOrden(0);
       setFiles([]);
-      setAviso(`${i} imagen(es) agregada(s).`);
-      await load();
+      setAviso(`${i} imagen(es) agregada(s) y verificada(s).`);
+      toast.success(`${i} imagen(es) agregada(s) al carrusel`);
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al subir");
+      const msg = e instanceof Error ? e.message : "Error al subir";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubiendo(false);
+    }
+  };
+
+  const actualizar = async (img: ImagenCarrusel) => {
+    setError("");
+    setAviso("");
+    try {
+      await updateImagenCarrusel(img.id_imagen, {
+        titulo: img.titulo,
+        orden: img.orden,
+        activo: img.activo,
+      });
+      const data = await load();
+      const guardada = data.find((i) => i.id_imagen === img.id_imagen);
+      if (
+        !guardada ||
+        guardada.titulo !== img.titulo ||
+        guardada.orden !== img.orden ||
+        guardada.activo !== img.activo
+      ) {
+        throw new Error("El cambio no se reflejó en la base de datos.");
+      }
+      setAviso(`«${guardada.titulo}» actualizada correctamente.`);
+      toast.success("Imagen actualizada");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error al actualizar";
+      setError(msg);
+      toast.error(msg);
+    }
+  };
+
+  const eliminar = async (img: ImagenCarrusel) => {
+    setError("");
+    setAviso("");
+    try {
+      await deleteImagenCarrusel(img);
+      const data = await load();
+      if (data.some((i) => i.id_imagen === img.id_imagen)) {
+        throw new Error("La imagen sigue en la base de datos.");
+      }
+      setAviso("Imagen eliminada correctamente.");
+      toast.success("Imagen eliminada");
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : "Error al eliminar";
+      setError(msg);
+      toast.error(msg);
     }
   };
 
@@ -735,10 +838,13 @@ function CarruselTab() {
         await uploadImagenCarrusel(file, img.titulo, i);
         i += 1;
       }
-      setAviso("Imágenes actuales de la página cargadas al carrusel.");
       await load();
+      setAviso("Imágenes actuales de la página cargadas al carrusel.");
+      toast.success("Imágenes actuales cargadas");
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Error al importar");
+      const msg = e instanceof Error ? e.message : "Error al importar";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setSubiendo(false);
     }
@@ -746,6 +852,7 @@ function CarruselTab() {
 
   return (
     <section className="grid gap-6 lg:grid-cols-[380px_1fr]">
+      {confirmState && <ConfirmDialog state={confirmState} onClose={() => setConfirmState(null)} />}
       <div className="rounded-2xl border border-border/60 bg-card p-5 shadow-sm">
         <h2 className="mb-3 font-serif text-lg">Nueva imagen</h2>
         <div className="space-y-3 text-sm">
@@ -790,14 +897,32 @@ function CarruselTab() {
           {aviso && <p className="text-xs text-accent">{aviso}</p>}
           <div className="flex flex-wrap gap-2">
             <button
-              onClick={subir}
+              onClick={() => {
+                if (files.length === 0) {
+                  setError("Selecciona al menos una imagen.");
+                  return;
+                }
+                setConfirmState({
+                  titulo: "Confirmar inserción",
+                  detalle: `Se agregarán ${files.length} imagen(es) al carrusel.`,
+                  textoBoton: "Sí, insertar",
+                  accion: subir,
+                });
+              }}
               disabled={subiendo}
               className="rounded-full bg-primary px-4 py-2 text-xs text-primary-foreground disabled:opacity-50"
             >
               {subiendo ? "Subiendo…" : "Insertar imagen"}
             </button>
             <button
-              onClick={importarActuales}
+              onClick={() =>
+                setConfirmState({
+                  titulo: "Cargar imágenes actuales",
+                  detalle: `Se subirán ${IMAGENES_ACTUALES.length} fotos de la página al carrusel.`,
+                  textoBoton: "Sí, cargar",
+                  accion: importarActuales,
+                })
+              }
               disabled={subiendo}
               className="rounded-full border border-border px-4 py-2 text-xs disabled:opacity-50"
             >
@@ -883,24 +1008,30 @@ function CarruselTab() {
               </div>
               <div className="mt-2 flex gap-2">
                 <button
-                  onClick={async () => {
-                    await updateImagenCarrusel(img.id_imagen, {
-                      titulo: img.titulo,
-                      orden: img.orden,
-                      activo: img.activo,
-                    });
-                    load();
-                  }}
+                  onClick={() =>
+                    setConfirmState({
+                      titulo: "Confirmar actualización",
+                      detalle: `Se guardarán los cambios de «${img.titulo}» (orden ${img.orden}, ${
+                        img.activo ? "activa" : "oculta"
+                      }).`,
+                      textoBoton: "Sí, actualizar",
+                      accion: () => actualizar(img),
+                    })
+                  }
                   className="rounded-full bg-primary px-3 py-1 text-xs text-primary-foreground"
                 >
                   Actualizar
                 </button>
                 <button
-                  onClick={async () => {
-                    if (!confirm("¿Eliminar imagen?")) return;
-                    await deleteImagenCarrusel(img);
-                    load();
-                  }}
+                  onClick={() =>
+                    setConfirmState({
+                      titulo: "Eliminar imagen",
+                      detalle: `«${img.titulo}» se eliminará del carrusel y del almacenamiento. Esta acción no se puede deshacer.`,
+                      textoBoton: "Sí, eliminar",
+                      destructivo: true,
+                      accion: () => eliminar(img),
+                    })
+                  }
                   className="rounded-full border border-border px-3 py-1 text-xs text-destructive"
                 >
                   Eliminar
