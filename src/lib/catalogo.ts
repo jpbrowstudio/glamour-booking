@@ -75,6 +75,16 @@ export async function listCarrusel(soloActivos = false): Promise<ImagenCarrusel[
   return (data ?? []) as ImagenCarrusel[];
 }
 
+/** Firma de nuevo el enlace sin escribir en la base (uso público). */
+export async function signImagenUrl(img: ImagenCarrusel): Promise<string | null> {
+  if (!img.storage_path) return null;
+  const { data, error } = await supabase.storage
+    .from(CARRUSEL_BUCKET)
+    .createSignedUrl(img.storage_path, SIGNED_URL_TTL);
+  if (error || !data) return null;
+  return data.signedUrl;
+}
+
 /** Vuelve a firmar la URL de una imagen (por si el enlace caducó). */
 export async function refreshImagenUrl(img: ImagenCarrusel): Promise<string> {
   if (!img.storage_path) return img.imagen_url;

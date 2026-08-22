@@ -15,6 +15,7 @@ import {
   type UsuarioAdmin,
   getUsuarioActivo,
   listCarrusel,
+  signImagenUrl,
   listServicios,
 } from "../lib/catalogo";
 import { InstagramCarousel } from "../components/instagram-carousel";
@@ -53,10 +54,24 @@ function Landing() {
     getUsuarioActivo().then(setOwner).catch(() => undefined);
   }, []);
 
+  const refirmar = async (id: number) => {
+    const img = galeria.find((g) => g.id_imagen === id);
+    if (!img) return;
+    const url = await signImagenUrl(img).catch(() => null);
+    if (!url || url === img.imagen_url) return;
+    setGaleria((prev) =>
+      prev.map((g) => (g.id_imagen === id ? { ...g, imagen_url: url } : g)),
+    );
+  };
+
   const images =
     galeria.length > 0
-      ? galeria.map((g) => ({ src: g.imagen_url, alt: g.titulo || "Trabajo del studio" }))
-      : IMAGES;
+      ? galeria.map((g) => ({
+          src: g.imagen_url,
+          alt: g.titulo || "Trabajo del studio",
+          id: g.id_imagen,
+        }))
+      : IMAGES.map((i, idx) => ({ ...i, id: -1 - idx }));
 
   useEffect(() => {
     setSlide(0);
@@ -168,6 +183,7 @@ function Landing() {
                   slide === i ? "opacity-100" : "opacity-0"
                 }`}
                 loading={i === 0 ? "eager" : "lazy"}
+                onError={() => { if (img.id > 0) void refirmar(img.id); }}
               />
             ))}
           </div>
@@ -182,7 +198,13 @@ function Landing() {
                   slide === i ? "ring-2 ring-primary ring-offset-2 ring-offset-background" : "opacity-70 hover:opacity-100"
                 }`}
               >
-                <img src={img.src} alt={img.alt} className="h-full w-full object-cover" loading="lazy" />
+                <img
+                  src={img.src}
+                  alt={img.alt}
+                  className="h-full w-full object-cover"
+                  loading="lazy"
+                  onError={() => { if (img.id > 0) void refirmar(img.id); }}
+                />
               </button>
             ))}
           </div>
